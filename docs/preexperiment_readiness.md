@@ -1,11 +1,11 @@
 # ELoRA 对称专家预实验就绪性报告
 
-readiness: not_ready
+readiness: ready
 
 日期：2026-09-01
 目标：仅完成 Goal 0 工程能力和验证，不运行 Goal 1 正式矩阵。
 
-本地验证实现 commit：`f42866353c7a778bd2f10963f90aa2159a0687e1`。
+本地实现 commit：`f42866353c7a778bd2f10963f90aa2159a0687e1`。Guqq 最终验证 commit：`dee1e009b352d209a476af83623e14f71a492300`。
 
 ## 检查点
 
@@ -15,7 +15,7 @@ readiness: not_ready
 | B 配置、bank、router | complete locally | readiness 单元测试与真实 MACE 等变性测试 |
 | C 数据统计与 split | complete locally | 合成数据、2000/2001、pre-SG fallback、group leakage 测试 |
 | D checkpoint、统计、smoke | complete locally | checkpoint metadata、merge/unmerge、CPU smoke |
-| E Guqq Slurm | pending | environment/unit/CPU/GPU job ID 与日志待回填 |
+| E Guqq Slurm | complete | setup 204、unit 205、CPU smoke 206、GPU smoke 207；均 `COMPLETED`, `ExitCode=0:0` |
 
 ## 论文逻辑与实现映射
 
@@ -46,7 +46,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 7. 参数/optimizer/非零梯度/内存：`parameter_statistics`。
 8. 数据 10–13、16：合成统计产物、计数守恒、threshold、split leakage、2000/2001 和 pre-SG fallback tests。
 9. router 14：冻结 symmetry/random labels来自 manifest；learned router只读 invariant features，测试旋转/平移/置换不改输入与路由。
-10. GPU 15：Guqq GPU Slurm smoke 尚待执行。
+10. GPU 15：Guqq Job 207 在 RTX 5090 上证明 CC 12.0、`sm_120`、torch CUDA 12.8、实际 CUDA kernel、forward/backward 与 checkpoint restore。
 
 ## 可复现入口
 
@@ -65,11 +65,15 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 
 等容量随机对照只把 router 改为 `random_control` 并复用相同 K、split、train_size、seed 和优化预算。learned 路由还必须提供冻结定义的 invariant `router_features`。
 
-## 未解决门控
+## 最终门控结果
 
 - 最终本地门控已通过：selected 40 passed、training CLI 3 passed、CPU smoke/compile/shell/diff checks 全部退出码 0。
 - 实现与证据 commit 已推送；`601f45c` 的 post-commit 本地门控为 43 passed，CPU smoke 成功。
-- 50-wheel offline wheelhouse 已生成并通过 SHA-256 全量校验，尚未 SCP。
-- Guqq setup、unit、CPU/GPU smoke 尚未通过，job ID、`scontrol`、stdout/stderr 和产物尚未回填。
+- 50-wheel offline wheelhouse 曾在本地通过 SHA-256 全量校验；因 SSH 大文件传输不稳定，最终使用已授权的服务器在线依赖路径，清华 PyPI 主索引 + 官方 PyTorch cu128 extra index。
+- Guqq setup Job 204：`COMPLETED`, `ExitCode=0:0`；Python 3.10.12 venv、editable MACE 0.3.5、`pip check`、torch 2.11.0+cu128 / CUDA 12.8 与固定依赖 import 全部通过。
+- Guqq unit Job 205：`COMPLETED`, `ExitCode=0:0`；40 passed。
+- Guqq CPU smoke Job 206：`COMPLETED`, `ExitCode=0:0`；forward/backward、checkpoint restore 与 JSON 产物成功。
+- Guqq GPU smoke Job 207：`COMPLETED`, `ExitCode=0:0`；RTX 5090、CC 12.0、`sm_120_supported=true`、实际 CUDA kernel、forward/backward、checkpoint restore 与 JSON 产物成功。
+- stdout/stderr 与 smoke JSON 已经 SCP 回本地核验；unit/CPU/GPU stderr 均为空。Goal 0 readiness 门控全部完成，未启动 Goal 1。
 
-readiness: not_ready
+readiness: ready

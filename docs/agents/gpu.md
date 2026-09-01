@@ -26,3 +26,20 @@
 - 状态：连接成功，Guqq fast-forward 到 `9369c711eb3c9445edb8829f8187b5586dd3dadc`；提交 setup Job 203。下一连接用于持续只读监控，仍先 pull。
 
 - Job 203 结果：online resolver 明确选择并安装 `torch-2.11.0+cu128` 及 CUDA 12.8 依赖；`python-hostlist` wheel 构建成功。随后 editable ELoRA 的隔离 build env 因 `--no-index` 找不到 `setuptools>=42` 而退出 1，尚未运行 `pip check`/import 门控。
+- 同一持续连接的下一操作：本地修复已以 `dee1e009b352d209a476af83623e14f71a492300` push。先在 Guqq 执行 `git pull --ff-only`，核对 exact HEAD，再提交替代 setup job；继续只读监控。
+- 持续连接结果：pull 期间 SSH `Connection reset`，没有 pull 完成或 sbatch 输出，故不假定替代 job 已提交。
+
+## 2026-09-01 17:06 +08:00：重连提交 editable 修复
+
+- 用途：新连接先 pull `dee1e00…` 并核对 HEAD，再提交替代 setup job，返回明确 Job ID。
+- 权限核对：Git pull、Slurm 提交与环境 cache/venv 变更均在最新规范授权范围；不触碰 `net.sh` 或其他任务数据。
+- 状态：连接成功，Guqq fast-forward 到 `dee1e009b352d209a476af83623e14f71a492300`；提交 setup Job 204。下一连接用于持续只读监控，仍先 pull。
+- Job 204 结果：成功。editable MACE/ELoRA 构建安装、`pip check`、固定依赖 import 全部通过；报告 torch `2.11.0+cu128`、CUDA 12.8、e3nn 0.4.4，结束时间 `2026-09-01T17:12:35+08:00`。
+- 同一连接下一操作：提交 exact commit `dee1e00…` 的 unit readiness、CPU smoke 和 GPU smoke 作业，并持续只读监控。
+- Jobs 205/206/207：scheduler 均为 `COMPLETED`, `ExitCode=0:0`。Job 205 为 40 passed；Job 206 CPU smoke 成功；Job 207 报告 RTX 5090、CC 12.0、sm_120、CUDA 12.8 和实际 kernel 成功。持续会话已正常退出。
+
+## 2026-09-01 17:16 +08:00：SCP 回传 readiness 证据
+
+- 用途：仅从 Guqq 回传 Jobs 204–207 的 stdout/stderr 与 CPU/GPU smoke JSON 到本地忽略的 `.cache/guqq-readiness-dee1e00/`。
+- 权限核对：SCP 结果回传在本地许可范围；目标是 `.cache`，不会提交生成日志/结果，也不修改服务器文件。
+- 状态：SCP 成功；10 个文件回传到本地 `.cache/guqq-readiness-dee1e00/`。stdout/JSON 内容与 scheduler 结果一致，unit/CPU/GPU stderr 均为 0 字节；最终文档检查完成后按授权删除本地副本，服务器原始日志仍可回传。

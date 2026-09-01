@@ -10,3 +10,6 @@
 - cu128 索引修复的 commit 前验证完成：双索引静态断言、目标 wheelhouse 解析、SBATCH syntax 均通过，readiness 回归 40 passed。
 - setup Job 203 已证明 cu128 双索引修复有效；最后因 editable install 的离线 build isolation 找不到 setuptools 失败。计划增加 `--no-build-isolation` 后按新规范 commit 前验证。
 - editable 修复的 commit 前验证全部通过：SBATCH syntax、精确静态断言、真实 editable dry-run 和 40 项 readiness 回归。
+- setup Job 204 成功：Python venv、torch cu128/CUDA 12.8、editable ELoRA、`pip check` 和固定版本 import 全部通过。
+- Jobs 205/206/207 全部 `COMPLETED`, `ExitCode=0:0`：unit 40 passed、CPU smoke 成功、RTX 5090 GPU smoke 证明 CC 12.0/sm_120/CUDA kernel。证据已 SCP 核验，Goal 0 readiness 更新为 `ready`。
+- 最终文档检查通过后清理本任务本地临时文件约 1.64 GiB；保留来源不明的 `.cache/uv`，服务器原始作业证据未删除。
