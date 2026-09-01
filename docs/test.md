@@ -4,6 +4,8 @@
 
 环境：Windows，Python 3.12.7，PyTorch 2.13.0 CPU，e3nn 0.4.4，ASE 3.22.1；cache 均在仓库内。
 
+验证代码 commit：`f42866353c7a778bd2f10963f90aa2159a0687e1`。
+
 | 命令 | 结果 | 退出码 |
 |---|---|---:|
 | `python -m pytest tests/test_elora_readiness.py -q` | 23 passed（修正统一 readout policy 后） | 0 |

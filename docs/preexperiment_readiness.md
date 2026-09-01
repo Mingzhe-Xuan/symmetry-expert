@@ -5,6 +5,8 @@ readiness: not_ready
 日期：2026-09-01
 目标：仅完成 Goal 0 工程能力和验证，不运行 Goal 1 正式矩阵。
 
+本地验证实现 commit：`f42866353c7a778bd2f10963f90aa2159a0687e1`。
+
 ## 检查点
 
 | 检查点 | 状态 | 证据 |
@@ -66,7 +68,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 ## 未解决门控
 
 - 最终本地门控已通过：selected 40 passed、training CLI 3 passed、CPU smoke/compile/shell/diff checks 全部退出码 0。
-- 代码尚未 commit/push。
+- 实现已 commit，证据文档 follow-up 与 push 尚待完成。
 - 50-wheel offline wheelhouse 已生成并通过 SHA-256 全量校验，尚未 SCP。
 - Guqq setup、unit、CPU/GPU smoke 尚未通过，job ID、`scontrol`、stdout/stderr 和产物尚未回填。
 
