@@ -1,10 +1,11 @@
 # Goal 0 测试记录
 
-## 2026-09-01：pip IPv6 timeout 修复（计划，等待 commit 后执行）
+## 2026-09-01：pip IPv6 timeout 修复（commit `843f65e` 后验证）
 
-- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`。
-- 目标平台 pip dry-run 与 readiness 四文件回归套件。
-- Guqq 替代 setup job 日志必须显示依赖安装继续推进，不能再次长期停留在 IPv6 `SYN-SENT`。
+- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：通过，退出码 0。
+- 目标平台 pip dry-run：全部固定与传递依赖解析成功，选中 `torch 2.11.0+cu128`，退出码 0。
+- readiness 四文件回归套件：40 passed，退出码 0。
+- Guqq 替代 setup job 日志仍须证明依赖安装继续推进，不能再次长期停留在 IPv6 `SYN-SENT`。
 
 ## 2026-09-01：Slurm 在线依赖 fallback（commit `4dbccde` 后验证）
 

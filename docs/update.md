@@ -4,7 +4,7 @@
 
 - Job 201 正确进入在线 fallback，但 pip 在不可达 IPv6 socket 上持续 `SYN-SENT`；PyPI 的工作路径由登录节点 HTTP 200 检查确认。
 - 取消 Job 201，将 pip timeout 从 120 秒降为 10 秒并保留 20 次重试，使 urllib3 快速尝试 IPv4；经验与代码注释已同步。
-- 提交后计划运行 SBATCH syntax、requirements 目标解析和 readiness 回归，再同步并提交替代 job。
+- 修复 commit：`843f65e`。提交后 SBATCH syntax、requirements 目标解析通过，readiness 回归 40 passed；下一步同步并提交替代 job。
 
 ## 2026-09-01：服务器依赖下载授权
 

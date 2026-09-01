@@ -4,7 +4,7 @@
 
 当前阶段：检查点 D（本地实现与验证）收尾；检查点 E（Guqq Slurm 验证）尚未开始。
 
-2026-09-01 检查点 H Job 201：online fallback 启动后 pip 被不可达 IPv6 长超时阻塞；登录节点环境检查证明 PyPI 工作路径可达。Job 201 已取消，将 pip timeout 改为 10 秒以快速 fallback 到 IPv4，提交后验证并重投 setup。
+2026-09-01 检查点 H Job 201：online fallback 启动后 pip 被不可达 IPv6 长超时阻塞；登录节点环境检查证明 PyPI 工作路径可达。Job 201 已取消；timeout 修复 commit `843f65e` 的 SBATCH syntax、目标 requirements 解析和 40 项回归均通过，下一步重投 setup。
 
 2026-09-01 检查点 G 下载策略：服务器已获准下载必要依赖。停止本地 rsync 恢复路径；setup Slurm job 保留已校验 wheelhouse 优先级，并在不完整时从 PyPI/PyTorch cu128 index 下载到项目 cache。commit `4dbccde` 后 requirements 解析、SBATCH 语法和 40 项 readiness 回归均通过；按用户最新指示继续使用 Python `venv`，下一步同步 Guqq、提交 setup job。
 
