@@ -21,3 +21,9 @@
 
 - foundation CLI 回归需要放宽的只是预训练模型保留非零原子能量这一条断言；同文件另有三个非 foundation 调用必须继续要求孤立原子能量为零。
 - 两次补丁因上下文过宽而落到相邻调用，造成同一失败重复。此类窄语义修改应在编辑后立即用带上下文的 `rg -n -C` 列出全部调用点，逐项核对参数，再运行定向测试；不能只确认 helper 定义已变化。
+
+## 完整套件集成失败必须按层拆解
+
+- Jobs 208/211/216 连续三次未通过，但分别属于 Slurm 时限、损坏/缺失外部模型 cache、CPU Inductor 原生崩溃；不能把它们统称为“测试慢”或通过扩大时限掩盖。
+- foundation 下载函数会直接写正式 cache 名；连接中断会留下被下次误认为有效的半文件。服务器慢网下应使用本地已验证文件、独立 staging、断点续传、size/SHA-256/zip 三重校验和同文件系统原子改名。
+- 原生 compiler 崩溃先以精确 pytest node id 在 Slurm 中复现，并隔离每-job 编译 cache、线程配置；只有保留原 backend、dtype、forward/forces backward 与数值断言的配置通过，才能进入完整套件，不能用 skip/xfail/eager 规避。

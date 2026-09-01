@@ -115,3 +115,48 @@
 ### commit 前实际结果
 
 - 四个 SBATCH `bash -n`、60 分钟时限唯一匹配、完整 pytest 命令唯一匹配、`git diff --check` 与 not_ready marker 断言全部通过，退出码 0；业务代码和测试内容未改变。
+
+## 2026-09-01：Guqq foundation cache 修复（计划）
+
+- Job 211 在 4 秒内 collection error：`/home/xmz/symmetry-expert/.cache/mace/46jrkm3v` 缺少 zip central directory，证明 Job 208 的长运行留下不完整 MACE-MP small cache。
+- 先只读记录该文件的路径、大小与 SHA-256；仅在 realpath 位于任务 `.cache/mace/` 且文件名精确为 `46jrkm3v` 时删除损坏文件。
+- 使用源码固定 URL `https://tinyurl.com/46jrkm3v`、IPv4、redirect、失败重试和临时 `.part` 文件重新下载；zip 完整性通过后原子改名，避免再次把半文件暴露为有效 cache。
+- 轻量验收：记录新 size/SHA-256，Python `zipfile` 完整性检查通过；随后在不改变测试范围的情况下重投 exact commit `af5aef4` 的完整 Job。
+
+### 实际结果
+
+- 旧损坏文件：25,731,072 字节，SHA-256 `81c44f00d79a5faac7c902bdd51c7f9f7322ed5dd779f523d243e8a70de64ac0`。
+- Guqq IPv4 下载仅约 19 KiB/s，在正式 cache 尚不存在、仅 `.part` 约 5% 时中断；本地同 URL cache 为 32,581,838 字节，zip 完整，SHA-256 `2ddb079cee0e131eaaf6912ba581b394551ead283e95c99cfe78c605d10b5736`。
+- 首次 SCP 被 port 22 关闭；增加 keepalive 的单次重试成功。远端临时文件的 size/hash/zip 全部与本地一致后原子改名；正式 `.cache/mace/46jrkm3v` 复核通过。
+- 下一门控：exact `af5aef4` 重投完整 `ELoRA/tests -q`，不改变 suite 或依赖环境。
+
+## 2026-09-01：其余 foundation cache 预置（计划）
+
+- 本地完整 suite 已验证的额外 cache：MACE-MP large `5f5yavf3` 133,803,220 字节；MACE-OFF small/medium/large 分别 7,347,350 / 18,350,596 / 55,492,786 字节，SHA-256 由本地清单记录。MACE-MP medium 使用仓库自带模型，不需要 cache 文件。
+- 若 Guqq 只读盘点证明 Job 213 正在向正式 `5f5yavf3` 写入不完整下载，则取消本任务 Job 213，避免并发覆盖；随后按 `.part` + size/hash/zip + 原子改名逐个 SCP 本地已验证文件。
+- 所有远端目标必须通过 `.cache/mace` realpath 门控；已有 size/hash/zip 全部正确的文件保留，不覆盖。修复后重投完整 unit。
+
+### 条件诊断结果
+
+- Job 213 运行 44:52 时，`5f5yavf3` 仅 17,309,696 / 133,803,220 字节且 mtime 持续更新；三个 MACE-OFF cache 均缺失。按证据取消 Job 213，避免与预置文件并发写。
+- 下一步先本地逐个 zip 校验，再将四文件复制到独立 staging 目录，一次 SCP 到远端独立 preload 目录；逐文件 size/hash/zip 通过后才替换正式 cache。
+- 递归 SCP 中断后远端 preload 仅含 `5f5yavf3` 24,444,928 / 133,803,220 字节，其他三文件未开始。后续改用 SFTP `reput` 断点续传到同一 staging，避免每次连接从零覆盖。
+
+### 预置实际结果
+
+- SFTP `reput` 经断点续传完成；针对连接不稳定使用 `-R 1 -B 32768`，并从 batch 逐步移除已完成文件。正式启用前四文件 size/SHA-256 与本地清单全部一致，Python zipfile 全量检查 `files=4` 通过。
+- 远端原子启用并复核：MACE-MP large `f80e992b…95b32`；MACE-OFF small `165cce4c…7c46f`、medium `4842c52a…87db7`、large `a29e397d…d76f4`。正式 cache 不再包含 Job 213 的 partial large。
+- 下一门控：exact af5 完整 unit；collection 不应联网下载 foundation 文件。
+
+## 2026-09-01：CPU TorchInductor segfault 诊断（计划）
+
+- Job 216 在完整 suite 的前 12 项后于 `test_compile.py::test_mace` 原生段错误：scheduler `FAILED`, `ExitCode=139:0`, runtime 6:39；Python fatal stack 位于 `/tmp/torchinductor_xmz/...py` 生成 kernel 的 forces 二阶反向，无 pytest assertion failure。
+- 新增版本化 `compile_cpu_diagnostic.sbatch`，只运行 `test_mace[fp32-cpu]` 与 `[fp64-cpu]`，仍执行真实 `torch.compile(mode=default)`、energy/forces 数值比较和二阶反向。
+- 并行比较两个 Slurm profile：`fresh_cache` 使用每-job `TORCHINDUCTOR_CACHE_DIR`/`TRITON_CACHE_DIR`；`fresh_cache_single_thread` 在此基础上增加 `OMP_NUM_THREADS=1`、`MKL_NUM_THREADS=1`、`TORCHINDUCTOR_COMPILE_THREADS=1`。
+- commit 前检查：新 SBATCH `bash -n`、两个 profile/两个精确 pytest node id/每-job cache 静态断言、`git diff --check`、readiness 保持 not_ready。
+- 只有保留真实 compile 与双 dtype CPU 测试的 profile 通过，才用于完整 unit；不得 skip、xfail 或改 eager backend。
+
+### commit 前实际结果
+
+- 诊断 SBATCH 与 unit SBATCH `bash -n` 通过；两个 profile、每-job Inductor/Triton cache、fp32/fp64 CPU 精确 node ids 静态断言通过；`git diff --check` 与 not_ready marker 检查通过，全部退出码 0。
+- 本地 collect-only 确认 node ids 为 `test_mace[fp32-cpu]` 与 `test_mace[fp64-cpu]`；Windows 按 upstream 标记跳过执行，因此真实运行仅提交 Guqq Slurm。

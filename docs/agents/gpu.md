@@ -164,3 +164,235 @@
 
 - 用途：本地把版本化 unit wall time 调整到 60 分钟并通过提交前检查、commit/push 后，新连接先 pull exact commit，再只重投完整 unit；Jobs 209/210 的成功 smoke 证据继续有效。
 - 权限核对：只调整 Slurm 资源时限，不改变测试范围或业务代码；重投和监控仍由 Slurm/登录节点轻量操作完成。
+- 连接结果：Guqq fast-forward 到 exact `af5aef4d1f741a6ce1251db8c2d6d55b7ee5653e`，受管 diff 为空；提交完整 unit Job 211。
+
+## 2026-09-01 21:44 +08:00：Job 211 监控
+
+- 用途：新连接先 pull exact af5，再只读检查 Job 211 的 scheduler 与 stdout/stderr，持续至完整 pytest 汇总和终态。
+- 权限核对：只读监控，不修改远端 HEAD 或作业。
+- 终态结果：Job 211 为 `FAILED`, `ExitCode=2:0`, runtime 4 秒。pytest collection 明确报告 `.cache/mace/46jrkm3v` 为损坏 zip（缺 central directory）；stderr 仅为 srun exit 2 与失败 trap。确认 Job 208 长运行不是完整测试计算，而是首次 foundation 下载留下半文件。
+
+## 2026-09-01 21:46 +08:00：损坏 foundation cache 修复
+
+- 用途：新连接先 pull exact af5；只处理任务 cache 中精确的 `.cache/mace/46jrkm3v`，记录旧 size/hash 后删除，IPv4 重试下载到 `.part`，zip 验证后原子改名并记录新 size/hash。
+- 权限核对：最新规范允许在登录节点下载模型及做轻量文件校验；目标严格位于项目任务 `.cache/mace`，不修改 Git 源码、系统环境或其他缓存。
+- 连接尝试 1：跨 PowerShell/SSH 的嵌套引号再次被剥离，远端 Bash 在解析阶段退出；未执行 pull、删除、下载或其他状态变更。
+
+## 2026-09-01 21:48 +08:00：Base64 固定脚本重试 cache 修复
+
+- 用途：把同一固定 Bash 脚本编码后传给远端解码执行，避免跨 shell 引号歧义；仍先 pull exact af5，并执行 exact cache/part realpath 门控后才删除损坏文件和下载。
+- 权限核对：编码只改变命令传输方式，不扩大目标、网络来源或操作权限。
+- 连接结果：pull exact af5 成功；确认旧损坏文件 size 25,731,072、SHA-256 `81c44f00d79a5faac7c902bdd51c7f9f7322ed5dd779f523d243e8a70de64ac0` 后删除。IPv4 下载到 `.part-job211` 仅约 19 KiB/s，预计 29 分钟；在 5% 时主动中断，正式 cache 文件仍不存在，只有不完整 `.part`。
+
+## 2026-09-01 21:51 +08:00：SCP 已验证本地 foundation cache
+
+- 用途：本地 `.cache/mace/46jrkm3v` 已证明 size 32,581,838、zip 完整、SHA-256 `2ddb079cee0e131eaaf6912ba581b394551ead283e95c99cfe78c605d10b5736`；按服务器网络过慢时允许的 SCP 路径传到 Guqq 的精确临时名 `.cache/mace/46jrkm3v.part-job211`。
+- 权限核对：SCP 是规范明确允许的大文件传输方式；覆盖的仅是本任务刚创建且已中断的不完整 `.part`，不触碰正式 cache、Git 源码或其他任务文件。传输后另起已记录的 SSH 连接先 pull，再核对 hash/zip 并原子改名。
+- 传输尝试 1：4 秒内被 Guqq port 22 关闭，SCP 退出 1；未假定临时文件完整，正式 cache 仍未创建。
+
+## 2026-09-01 21:52 +08:00：SCP 单次重试
+
+- 用途：对同一本地已验证文件与同一远端临时路径重试一次；成功后必须在独立 SSH 核验，失败则停止重复 SCP 并恢复 IPv4 `.part` 下载。
+- 权限核对：目标与上一尝试完全相同，不扩大覆盖范围。
+- 传输结果：增加 SSH keepalive 后 SCP 退出 0；文件仅位于临时名，尚未视为有效 cache。
+
+## 2026-09-01 21:54 +08:00：SCP 文件核验与原子启用
+
+- 用途：新 SSH 连接先 pull exact af5；核对 `.part-job211` size、SHA-256 与 zip 完整性均等于本地证据后，删除不存在/损坏的正式目标并原子 `mv` 到 `46jrkm3v`，再复核正式文件。
+- 权限核对：只在精确 `.cache/mace` realpath 门控内移动本任务临时文件；不触碰其他 cache 或源码。
+- 连接结果：pull exact af5 成功；临时文件 size 32,581,838、SHA-256 `2ddb079cee0e131eaaf6912ba581b394551ead283e95c99cfe78c605d10b5736`、zip 完整性全部通过，已原子改名并再次复核正式文件。
+
+## 2026-09-01 21:56 +08:00：修复 cache 后重投完整 unit
+
+- 用途：新连接先 pull exact af5 并核对 tree/index，随后只重投完整 unit；立即记录 job ID，再持久只读监控。
+- 权限核对：测试仍通过版本化 Slurm 脚本运行，不在登录节点计算；不重复已通过的 CPU/GPU smoke。
+- 连接结果：pull/tree/index exact af5；提交完整 unit Job 213。
+
+## 2026-09-01 21:57 +08:00：Job 213 持久监控
+
+- 用途：新连接先 pull exact af5，随后每 30 秒只读 squeue，作业离队后读取 scontrol 与完整 stdout/stderr。
+- 权限核对：持久 SSH 只减少重复连接；不修改远端状态或作业。
+- 监控进展：Job 213 已运行超过 39 分钟仍在 collection/测试静默阶段。`test_foundations.py` import 会依次加载 MACE-MP large 与三个 MACE-OFF 模型；本地盘点显示这些缓存合计约 215 MiB，Guqq 约 19 KiB/s 外网不足以在 60 分钟内完成。
+
+## 2026-09-01 22:21 +08:00：Job 213 下载状态诊断与条件取消
+
+- 用途：新连接先 pull exact af5；只读列出四个预期 cache 的 size/mtime/hash 与 Job 213 状态。仅当 `5f5yavf3` 等文件被当前作业写成小于本地已验证大小的不完整下载时，取消本任务 Job 213，防止与后续 SCP 并发写同一路径。
+- 权限核对：只诊断任务 cache 与本任务 Slurm job；条件取消仅用于避免已证明无法在时限内完成的慢下载，不触碰其他作业或数据。
+- 连接尝试 1：Guqq port 22 在命令执行前关闭；未完成 pull/cache 读取或 scancel，持久监控会话与 Job 213 不受影响。
+
+## 2026-09-01 22:22 +08:00：条件诊断单次重试
+
+- 用途与权限：与上一尝试完全相同；仅重试一次 exact cache size 诊断和有证据条件下的 Job 213 取消。
+- 连接结果：keepalive 重试仍在执行前被 port 22 关闭；持久监控显示 Job 213 运行至 42:06 后，已主动关闭监控 SSH（不影响 Slurm job）以释放连接槽。
+
+## 2026-09-01 22:24 +08:00：释放持久连接后的 cache 诊断
+
+- 用途：释放旧监控 SSH 后建立单一连接，仍先 pull exact af5，再执行同一 cache size 条件诊断/取消逻辑。
+- 权限核对：不扩大上一计划；仅解决 SSH 并发连接限制。
+- 连接结果：port 22 仍在命令执行前关闭，未 pull、诊断或取消；判断为临时连接限流，Job 213 继续由 Slurm 运行。
+
+## 2026-09-01 22:25 +08:00：限流冷却后重试
+
+- 用途：等待至少一分钟后重试同一 pull-first 条件诊断；若仍无法连接，则停止高频重连，让 Job 213 的 60 分钟时限自然保护。
+- 权限核对：与前述条件诊断一致。
+- 连接结果：pull exact af5 成功；`5f5yavf3` 仅 17,309,696 / 133,803,220 字节、mtime 为当前下载，三个 MACE-OFF cache 均缺失。Job 213 运行 44:52，按条件执行 `scancel 213`，避免并发覆盖。
+
+## 2026-09-01 22:27 +08:00：四个 foundation cache 单次目录 SCP
+
+- 用途：本地逐文件 zip/hash 复核后，将四个文件复制到 `.cache/preload-job213/` staging；一次递归 SCP 到远端 `.cache/mace/preload-job213/`，避免直接覆盖正式 cache 和多次连接。
+- 权限核对：本地/远端 staging 均为本任务 cache；传输仍使用规范允许的 SCP，不修改源码或系统环境。传输后独立 SSH 先 pull，再验证并原子启用。
+- 传输结果：约一分钟后远端主动关闭连接，SCP 退出 1；不假定 staging 中任何文件完整。
+
+## 2026-09-01 22:29 +08:00：远端 preload 完整性盘点
+
+- 用途：新 SSH 先 pull exact af5，只读列出 preload staging 的文件名、size、SHA-256；与本地清单对比，确定可保留的完整文件和需补传的最小集合。
+- 权限核对：只读检查任务 staging，不移动或删除文件。
+- 连接尝试 1：前置 pull 超时，链式门控未执行目录读取。
+
+## 2026-09-01 22:31 +08:00：preload 盘点 pull fallback
+
+- 用途：新连接先短 pull；若失败，仅在现场证明 `HEAD == origin/main == af5` 且 tree/index 干净后继续只读 staging size/hash 与 Job 213 终态检查。
+- 权限核对：沿用既有 TLS fallback，只读诊断不执行状态变更。
+- 盘点结果：pull 超时但 exact refs/tree 门控通过；preload 仅含 `5f5yavf3` 24,444,928 字节、SHA-256 `ee82e9…f52a`（预期为未完成前缀），其余三文件未开始。Job 213 已从 controller 清理。
+
+## 2026-09-01 22:34 +08:00：SFTP reput 断点续传
+
+- 用途：用本地 ignored batch 对四个已验证文件依次执行 SFTP `reput` 到远端 preload；连接中断时保留已传前缀，记录后重跑从断点继续，直到 batch 退出 0。
+- 权限核对：目标仍是独立任务 staging，不覆盖正式 cache；SFTP 是与 SCP 等价的授权文件传输路径，仅增加断点续传能力。
+- 尝试 1：约一分钟后远端关闭连接，SFTP 退出 1；`reput` 保留远端前缀。
+
+## 2026-09-01 22:36 +08:00：SFTP reput 重试 2
+
+- 用途与权限：冷却一分钟后重跑同一 ignored batch，从 staging 已有偏移继续，不改变任何目标。
+- 结果：连接保持超过一分钟后被远端关闭并报 broken pipe，退出 1；继续保留断点。
+
+## 2026-09-01 22:39 +08:00：SFTP reput 重试 3
+
+- 用途与权限：冷却后再次运行同一 batch；全部文件传完时 batch 应退出 0，否则继续按连接级记录。
+- 结果：约一分钟后再次 broken pipe，退出 1；断点保留。
+
+## 2026-09-01 22:41 +08:00：SFTP 三次后的 staging 盘点
+
+- 用途：冷却后新 SSH 先 pull/fallback exact af5，只读列出 preload 文件大小，确认断点进展和当前文件。
+- 权限核对：只读任务 staging，不修改文件。
+- 盘点结果：pull 成功；`5f5yavf3` staging 已增至 99,913,728 / 133,803,220 字节，证明 `reput` 正确续传；其他文件尚未开始。
+
+## 2026-09-01 22:43 +08:00：SFTP reput 重试 4
+
+- 用途与权限：同一 batch 从 large 剩余约 33.9 MiB 继续，随后进入三个较小文件；目标不变。
+- 结果：约 21 秒后远端关闭连接并 broken pipe，退出 1；需盘点是否恰好完成 large。
+
+## 2026-09-01 22:44 +08:00：重试 4 后盘点
+
+- 用途与权限：冷却后 pull-first 只读列出 preload sizes，确定下一最小传输。
+- 盘点结果：pull 超时但 exact refs/tree 通过；large staging 为 128,688,128 / 133,803,220 字节，仅剩约 5.1 MiB。
+
+## 2026-09-01 22:46 +08:00：SFTP reput 重试 5
+
+- 用途与权限：完成 large 剩余前缀并继续三个 MACE-OFF 文件；同一 staging batch。
+- 结果：约 14 秒后 broken pipe，退出 1；盘点确认实际完成范围。
+
+## 2026-09-01 22:47 +08:00：重试 5 后盘点
+
+- 用途与权限：冷却后 pull-first 只读列出 staging sizes。
+- 盘点结果：pull 超时但 exact refs/tree 通过；large 为 130,736,128 / 133,803,220 字节，还差约 3.1 MiB。
+
+## 2026-09-01 22:49 +08:00：SFTP 低并发 reput 重试 6
+
+- 用途：同一 batch 增加 `-R 1 -B 32768`，把并发请求降为 1、buffer 降为 32 KiB，减少远端 SFTP 压力并继续断点。
+- 权限核对：仅调整传输参数，文件和目标不变。
+- 结果：连接维持约一分钟；batch 进入 small 后因远端文件不存在而报 `stat remote: No such file`，退出 1。说明 `reput` 需要远端占位文件，需先核对 large 并为三个缺失 staging 创建零长度占位。
+
+## 2026-09-01 22:51 +08:00：核对 large 并创建缺失 staging 占位
+
+- 用途：新 SSH 先 pull/fallback exact af5，核对 large size/hash；仅在 preload realpath 门控内对三个不存在的 MACE-OFF staging 执行 `touch`，使后续 `reput` 可从 offset 0 开始。
+- 权限核对：零长度占位只在本任务 preload 目录，不是正式 cache，不覆盖已有文件。
+- 结果：pull exact af5；large size 133,803,220、SHA-256 `f80e992b65ab8f88fdf26964511357c022e92704e4d9bcd086652635a8495b32` 通过。三个 MACE-OFF 占位均为 0 字节。
+
+## 2026-09-01 22:53 +08:00：SFTP 低并发 reput 重试 7
+
+- 用途与权限：`-R 1 -B 32768` 同一 batch；large 已完整会快速跳过，三个占位从 offset 0 上传并可续传。
+- 结果：`reput` 对已完整 large 报 destination same size or larger 并使 batch 停止；三个 MACE-OFF 未开始。需从 ignored batch 移除已完成项。
+
+## 2026-09-01 22:54 +08:00：仅 MACE-OFF 的 SFTP batch
+
+- 用途与权限：本地 ignored batch 改为只含三个 MACE-OFF `reput`；远端占位和目标不变，继续低并发传输。
+- 结果：低并发连接稳定超过 2 分钟后被远端关闭，退出 1；断点保留，需盘点三个文件。
+
+## 2026-09-01 22:57 +08:00：MACE-OFF staging 盘点
+
+- 用途与权限：冷却后 pull-first 只读核对三个 staging size，移除本地 batch 中已完成项后续传剩余最小集合。
+- 盘点结果：pull 成功；small 完整 7,347,350 字节，medium 8,486,912 / 18,350,596 字节，large 0 / 55,492,786 字节。large MACE-MP 仍完整。
+
+## 2026-09-01 22:59 +08:00：medium/large SFTP 续传
+
+- 用途与权限：从 ignored batch 移除已完成 small，仅低并发 `reput` medium 与 large。
+- 结果：约一分钟后远端关闭连接，退出 1；断点保留。
+
+## 2026-09-01 23:01 +08:00：medium/large 盘点
+
+- 用途与权限：冷却后 pull-first 只读核对 size，继续移除已完成项。
+- 盘点结果：pull 超时但 exact refs/tree 通过；medium 为 17,825,792 / 18,350,596 字节（剩约 0.5 MiB），large 仍为 0。
+
+## 2026-09-01 23:03 +08:00：medium/large SFTP 续传 2
+
+- 用途与权限：同一低并发 batch，先完成 medium，再进入 large。
+- 结果：约一分钟后远端关闭连接，退出 1；断点保留。
+
+## 2026-09-01 23:05 +08:00：续传 2 后盘点
+
+- 用途与权限：冷却后 pull-first 只读核对 medium/large sizes。
+- 连接尝试 1：port 22 在执行前关闭，未读取 staging。
+
+## 2026-09-01 23:06 +08:00：续传 2 盘点重试
+
+- 用途与权限：冷却后重试同一 pull-first 只读 size 盘点。
+- 盘点结果：pull 成功；medium 完整 18,350,596 字节，large 为 1,212,416 / 55,492,786 字节，small/MP-large 保持完整。
+
+## 2026-09-01 23:08 +08:00：仅 MACE-OFF large 续传
+
+- 用途与权限：从 ignored batch 移除完整 medium，只对最后一个 large 低并发 `reput`。
+- 结果：连接稳定约 3 分钟后被远端关闭，退出 1；断点保留。
+
+## 2026-09-01 23:12 +08:00：最后文件盘点
+
+- 用途与权限：冷却后 pull-first 只读核对 MACE-OFF large size；完整则进入四文件 hash/zip 验证，不完整则只续传剩余。
+- 盘点结果：pull 超时但 exact refs/tree 通过；MACE-OFF large 为 32,964,608 / 55,492,786 字节，剩约 22.5 MiB。
+
+## 2026-09-01 23:15 +08:00：最后文件续传 2
+
+- 用途与权限：同一低并发 batch 只续传 MACE-OFF large 剩余部分。
+- 结果：约两分钟后远端关闭连接，退出 1；断点保留。
+
+## 2026-09-01 23:18 +08:00：最后文件终态盘点
+
+- 用途与权限：冷却后 pull-first 核对最终 size；完整则进入四文件 hash/zip 验证。
+- 盘点结果：pull 超时但 exact refs/tree 通过；MACE-OFF large 为 41,385,984 / 55,492,786 字节，还差约 14.1 MiB。
+
+## 2026-09-01 23:20 +08:00：最后文件续传 3
+
+- 用途与权限：同一低并发 batch 续传剩余约 14.1 MiB。
+- 结果：SFTP batch 退出 0，最后一个 `reput` 与 `bye` 均完成；进入统一完整性验证。
+
+## 2026-09-01 23:23 +08:00：四文件验证与原子启用
+
+- 用途：新 SSH 先 pull/fallback exact af5；对 preload 四文件逐一断言本地清单的 size/SHA-256，并用 Python zipfile 全量检查。全部通过后才在 `.cache/mace` exact realpath 门控下以 staging 原子替换正式 cache，再复核。
+- 权限核对：仅替换已证明损坏/缺失且属于本任务的四个 foundation cache；不触碰 small `46jrkm3v`、源码或其他缓存。
+- 连接结果：pull 超时但 exact refs/tree 门控通过；四个 preload 的 size/SHA-256 与本地清单全部一致，zipfile 全量检查通过。原子替换正式 cache 后四个 hash 再次通过，preload 目录已空并移除。
+
+## 2026-09-01 23:25 +08:00：完整 foundation cache 后重投 unit
+
+- 用途：新连接先 pull/fallback exact af5，核对 tree/index 后提交完整 unit；不再允许 foundation 下载，持久监控直至终态。
+- 权限核对：版本化 Slurm 完整 suite，登录节点只提交/监控；CPU/GPU smoke 不重跑。
+- 连接结果：pull 超时但 exact refs/tree 门控通过；提交完整 unit Job 216。
+
+## 2026-09-01 23:27 +08:00：Job 216 持久监控
+
+- 用途：新连接先 pull/fallback exact af5，随后每 30 秒只读 squeue，离队后获取 scontrol 与完整 stdout/stderr。
+- 权限核对：持久 SSH 只用于监控，不修改远端状态。
+- 终态结果：Job 216 为 `FAILED`, `ExitCode=139:0`, runtime 6:39；stdout 已通过 12 项后停止。stderr 为 Python segmentation fault，当前线程位于 `/tmp/torchinductor_xmz` 生成 kernel 的 forces 二阶反向，调用来自 `test_compile.py::test_mace`；不是 assertion failure 或 foundation 下载。
+
+## 2026-09-01 23:36 +08:00：CPU Inductor 两 profile 诊断计划
+
+- 用途：本地新增并验证版本化诊断 SBATCH、commit/push 后，新连接先 pull exact commit，提交 fresh per-job cache 与 fresh-cache+single-thread 两个定向 CPU compile jobs，比较终态。
+- 权限核对：两项均是完整 suite 失败点的最小 Slurm 复现，不在登录节点计算，不跳过真实 compile/forces backward。

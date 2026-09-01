@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- Goal 0 本地完整门控及 Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：完整 unit Job 208 因 30 分钟时限窗口收到 SIGTERM，需提高脚本时限后在新 exact commit 重投。
+- Goal 0 本地完整门控及 Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：foundation cache 闭环完成；Job 216 暴露 Linux CPU TorchInductor 原生段错误，进入 fresh per-job cache/单线程的 Slurm 定向诊断。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
 - 用户拥有的 `ELoRA/README.md` 本地修改保持未提交，除非用户另有指示；最新版 `docs/AGENTS.md` 已随实现提交。
@@ -36,3 +36,7 @@
 - 2026-09-01 20:55 +08:00：第二次连接因嵌套引号解析失败而未执行远端命令；下一次拆分为简单 pull/核对连接，避免跨 shell 命令替换。
 - 2026-09-01 20:58 +08:00：Guqq 已成功 pull 到 `33f7b92` 且受管工作树干净；下一连接在再次 pull 最新记录 commit 后提交三个 readiness Slurm 作业。
 - 2026-09-01 21:41 +08:00：Jobs 209/210 CPU/GPU smoke 成功；完整 unit Job 208 在 28:33 被 Slurm SIGTERM，未产生测试失败摘要。保持完整套件，计划仅把 unit wall time 从 30 提高到 60 分钟后重投。
+- 2026-09-01 21:46 +08:00：Job 211 立即暴露 `.cache/mace/46jrkm3v` 缺 zip central directory；转为修复这一精确任务缓存并做 hash/zip 校验，再保持完整套件重投。
+- 2026-09-01 21:56 +08:00：Guqq foundation small cache 已修复为 32,581,838 字节、SHA-256 `2ddb079c…b5736` 且 zip 完整；进入 exact af5 的完整 unit 重投。
+- 2026-09-01 23:25 +08:00：MACE-MP large 与三个 MACE-OFF cache 通过断点 SFTP、size/hash/zip 校验及原子启用；服务器完整 suite 已具备离线 foundation 输入，准备重投。
+- 2026-09-01 23:36 +08:00：Job 216 在 `test_compile.py::test_mace` 的 CPU Inductor forces backward 中 segfault；预注册 fresh per-job cache 与单线程两个真实 compile 诊断，不降低测试语义。
