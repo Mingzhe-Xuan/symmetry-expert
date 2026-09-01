@@ -27,3 +27,17 @@
 - CPython 3.10 / manylinux 目标 pip dry-run：全部固定与传递依赖解析成功，明确选择 `torch-2.11.0+cu128`，退出码 0。
 - `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：通过，退出码 0。
 - readiness 四文件回归：40 passed，退出码 0；临时目录为仓库 `.cache/pytest-cu128-fix`。
+
+## 2026-09-01：editable build isolation 修复（计划）
+
+- 根因重现证据：Job 203 已安装 `torch 2.11.0+cu128` 及全部固定依赖，但 `pip --no-index --no-deps -e ELoRA` 的隔离 build env 无法下载 `setuptools>=42`。
+- 修复范围：editable install 增加 `--no-build-isolation`，复用 setup 前一步已安装的 setuptools/wheel；不改变依赖版本或业务代码。
+- commit 前检查：SBATCH syntax、静态断言 editable 命令同时含 `--no-index --no-deps --no-build-isolation -e ELoRA`、40 项 readiness 回归。
+- Guqq 集成：替代 setup job 必须通过 editable install、`pip check`、固定版本 import，并报告 torch cu128/CUDA 12.8。
+
+### commit 前实际结果
+
+- SBATCH shell syntax：通过，退出码 0。
+- editable 命令精确静态断言：`--no-index --no-deps --no-build-isolation -e ELoRA` 唯一匹配，退出码 0。
+- 本地真实 pip editable dry-run：build backend 与 editable metadata 均成功，结果为 `Would install mace-torch-0.3.5`，退出码 0。
+- readiness 四文件回归：40 passed，退出码 0。

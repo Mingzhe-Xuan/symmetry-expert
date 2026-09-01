@@ -16,3 +16,13 @@
 - 连接尝试 4 计划：先做短时 pull；若仍失败，仅在上述 refs/tree 一致性再次通过后继续。Job 202 查询改为可选，然后读取手动 `.venv` 和根目录 `requirements.txt`，不读取或修改 `net.sh`。
 - 连接尝试 4 结果：`git pull --ff-only` 成功并返回 `Already up to date`。手动 `.venv` 为 Python 3.10.12、pip 26.2.1，19 个直接依赖版本匹配且 `pip check` 通过；但 torch 是 `2.11.0+cu130` / CUDA 13.0，驱动 570.211.01 过旧，`cuda_available=False`。根目录未跟踪 `requirements.txt` 仅配置清华 PyPI mirror，是 cu130 选择根因。
 - 下一连接计划：在 canonical requirements 修复、commit 前检查、commit/push 完成后，先 pull 新 commit，再提交版本化 setup Slurm job 重建 `.venv`；不读取或修改 `net.sh`。
+
+## 2026-09-01 16:25 +08:00：提交 cu128 setup
+
+- 服务器：`Guqq`。
+- 用途：pull 已推送且 commit 前验证通过的 `9369c711eb3c9445edb8829f8187b5586dd3dadc`，提交 `setup_readiness.sbatch` 重建 Python `.venv`。
+- 计划操作：先 `git pull --ff-only`；核对 HEAD 后执行 `sbatch --export=ALL,EXPECTED_COMMIT=9369c711eb3c9445edb8829f8187b5586dd3dadc ...`；随后只读监控 scheduler 和日志。
+- 权限核对：Git pull、Slurm 提交和状态/日志查看符合规范；下载、安装和环境文件变更由版本化 setup job 在任务约定 `.venv/.cache` 中执行，不修改受 Git 管理源码。
+- 状态：连接成功，Guqq fast-forward 到 `9369c711eb3c9445edb8829f8187b5586dd3dadc`；提交 setup Job 203。下一连接用于持续只读监控，仍先 pull。
+
+- Job 203 结果：online resolver 明确选择并安装 `torch-2.11.0+cu128` 及 CUDA 12.8 依赖；`python-hostlist` wheel 构建成功。随后 editable ELoRA 的隔离 build env 因 `--no-index` 找不到 `setuptools>=42` 而退出 1，尚未运行 `pip check`/import 门控。

@@ -54,7 +54,7 @@ else
     "${VENV_DIR}/bin/python" -m pip install "${PIP_NETWORK_ARGS[@]}" --upgrade pip setuptools wheel
     "${VENV_DIR}/bin/python" -m pip install "${PIP_NETWORK_ARGS[@]}" -r docs/requirements.txt
 fi
-"${VENV_DIR}/bin/python" -m pip install --no-index --no-deps -e ELoRA
+"${VENV_DIR}/bin/python" -m pip install --no-index --no-deps --no-build-isolation -e ELoRA
 "${VENV_DIR}/bin/python" -m pip check
 "${VENV_DIR}/bin/python" - <<'PY'
 import ase, e3nn, h5py, matplotlib, numpy, pandas, scipy, torch
