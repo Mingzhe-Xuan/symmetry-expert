@@ -111,9 +111,11 @@ def test_mace(device, default_dtype):  # pylint: disable=W0621
     tmp_model = mace_compile.prepare(create_mace)(device)
     model_compiled = torch.compile(tmp_model, mode="default")
 
-    batch = create_batch(device)
-    output1 = model_defaults(batch, training=True)
-    output2 = model_compiled(batch, training=True)
+    batch_eager = create_batch(device)
+    output1 = model_defaults(batch_eager, training=True)
+    batch_compiled = create_batch(device)
+    batch_compiled["positions"].requires_grad_(True)
+    output2 = model_compiled(batch_compiled, training=True)
     assert_close(output1["energy"], output2["energy"])
     assert_close(output1["forces"], output2["forces"])
 
@@ -135,6 +137,7 @@ def test_eager_benchmark(benchmark, default_dtype):  # pylint: disable=W0621
 def test_compile_benchmark(benchmark, compile_mode, enable_amp):
     with tools.torch_tools.default_dtype(torch.float32):
         batch = create_batch("cuda")
+        batch["positions"].requires_grad_(True)
         torch.compiler.reset()
         model = mace_compile.prepare(create_mace)("cuda")
         model = torch.compile(model, mode=compile_mode, fullgraph=True)
@@ -150,6 +153,7 @@ def test_graph_breaks():
     import torch._dynamo as dynamo
 
     batch = create_batch("cuda")
+    batch["positions"].requires_grad_(True)
     model = mace_compile.prepare(create_mace)("cuda")
     explanation = dynamo.explain(model)(batch, training=False)
 

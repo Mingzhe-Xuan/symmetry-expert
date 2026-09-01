@@ -176,8 +176,11 @@ class MACE(torch.nn.Module):
         compute_displacement: bool = False,
     ) -> Dict[str, Optional[torch.Tensor]]:
         # Setup
-        data["node_attrs"].requires_grad_(True)
-        data["positions"].requires_grad_(True)
+        # Compiled callers prepare gradient leaves outside the full graph because
+        # Dynamo cannot trace an in-graph requires_grad_ state change.
+        if not torch.compiler.is_compiling():
+            data["node_attrs"].requires_grad_(True)
+            data["positions"].requires_grad_(True)
         num_graphs = data["ptr"].numel() - 1
         displacement = torch.zeros(
             (num_graphs, 3, 3),
@@ -327,8 +330,11 @@ class ScaleShiftMACE(MACE):
         compute_displacement: bool = False,
     ) -> Dict[str, Optional[torch.Tensor]]:
         # Setup
-        data["positions"].requires_grad_(True)
-        data["node_attrs"].requires_grad_(True)
+        # Compiled callers prepare gradient leaves outside the full graph because
+        # Dynamo cannot trace an in-graph requires_grad_ state change.
+        if not torch.compiler.is_compiling():
+            data["positions"].requires_grad_(True)
+            data["node_attrs"].requires_grad_(True)
         num_graphs = data["ptr"].numel() - 1
         displacement = torch.zeros(
             (num_graphs, 3, 3),

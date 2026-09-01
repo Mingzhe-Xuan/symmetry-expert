@@ -22,3 +22,4 @@
 - Job 216 排除 foundation 下载后在 CPU TorchInductor 生成 kernel 的 forces 二阶反向 segfault；转为版本化 Slurm 两 profile 定向诊断，保持真实 compile 测试语义。
 - Jobs 217/218 完成对照：独立 compiler cache 仍 abort，而独立 cache + 单线程的 fp32/fp64 真实 compile 全绿；正式 unit 将采用后者并保持完整测试范围。
 - Job 219 证明正式单线程配置消除 compiler crash；完整 suite 进一步发现 canonical venv 缺 benchmark plugin，以及 PyTorch 2.11 需要显式 autograd tracing。readiness 保持 not_ready，进入依赖与 upstream-compatible 修复。
+- Job 221 环境全绿；Job 222 将剩余失败收敛到 fullgraph 图内梯度突变和异常路径 dtype 泄漏。采用 upstream 的图外 positions leaf 约定并给 dtype context 加 finally，本地完整 suite 69 passed。

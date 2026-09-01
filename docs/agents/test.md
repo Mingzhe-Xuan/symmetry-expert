@@ -201,3 +201,31 @@
 - 首次完整调用未传仓库 `MACE_CACHE_DIR`，collection 在尝试访问受限用户缓存时中止；使用此前相同的仓库 `.cache/mace` 变量重跑，不修改测试范围。
 - 完整本地套件：`68 passed, 14 skipped, 976 warnings in 364.93s`，退出码 0；新增 1 项为 autograd tracing 回归，Windows compile/CUDA 仍按 upstream 标记跳过。
 - 五个 SBATCH `bash -n`、requirements pins、offline wheel 文件名/SHA gate 与插件 import/version 静态检查全部通过，退出码 0。
+
+### Guqq c5b 集成结果
+
+- setup Job 221：`COMPLETED`, `ExitCode=0:0`, runtime 00:04:44；canonical Python venv 和新增插件门控全部通过。
+- unit Job 222：`FAILED`, `ExitCode=1:0`, runtime 00:08:35；`7 failed, 74 passed, 1 skipped, 1194 warnings in 507.59s`。
+- 6 个 compile benchmark 已获得 fixture 并真实执行，但 fullgraph 在 `models.py` 的图内 `node_attrs.requires_grad_(True)` 报 PyTorch 2.11 Unsupported；说明 autograd tracing 已生效，下一缺口是输入梯度准备的位置。
+- `test_foundations` 在先前测试之后出现 node attrs Double / atomic energies Float；需证明并修复默认 dtype 的跨用例状态泄漏，不得只按当前测试顺序打补丁。
+
+## 2026-09-02：fullgraph 输入梯度与 dtype 隔离（诊断计划）
+
+- 对照 MACE upstream 当前 `models.py`、compile tests 与 torch.compile 建议，定位 `requires_grad_` 应在编译图外准备还是由可追踪张量构造替代；保留 `fullgraph=True`、forces/autograd 与 benchmark 语义。
+- 新增最小回归：编译准备不得依赖图内 `requires_grad_`；模型 eager 输出/forces 与修复前语义一致。Guqq 定向运行 6 个 benchmark 和 graph-break/CPU compile 节点。
+- dtype 回归：以非默认 dtype 创建 foundation target/source 和 batch，验证 helper/calculator 调用前后默认 dtype 精确恢复，后续 forward 不发生权重/输入类型错配。
+- 查明根因后先更新本计划的具体实现/预期，再修改代码；随后本地完整 suite、smoke、静态检查及 Guqq 完整 suite 均不得缩小。
+
+### 根因与实现门控
+
+- MACE upstream 当前 compile 测试在调用 compiled model 前显式执行 `batch["positions"].requires_grad_(True)`；当前主模型的 graph preparation 在 `torch.compiler.is_compiling()` 时跳过图内 `requires_grad_`。本分支将对 MACE/ScaleShiftMACE 保留 eager 行为，但编译时跳过 node_attrs/positions 的图内突变，并让三个 compiled 测试入口在图外设置 positions；`fullgraph=True` 保持不变。
+- node attrs 不参与 forces 的微分变量，compiled calculator 已在图外准备输入；直接 compile 测试仅需 positions 作为能量对坐标求导的 leaf。回归需同时比较 eager/compiled energy 与 forces。
+- dtype 根因是 `torch_tools.default_dtype()` 的 generator contextmanager 缺 `try/finally`：compile benchmark 抛异常时未恢复 float64，继而污染 foundation。增加异常路径精确恢复测试，并将 restore 放入 finally；不修改 foundation 数值或顺序。
+- 定向本地门控：dtype 正常/异常恢复、autograd tracing、compile node collect/JIT；Guqq 定向门控：6 个 fullgraph benchmark + graph-break + fp32/fp64 CPU/CUDA compile，再运行完整 suite。
+
+### commit 前实际结果
+
+- dtype 异常恢复与 autograd tracing 定向回归：`2 passed`，退出码 0。
+- 模型/JIT 回归：完整 `test_models.py` 为 `3 passed, 350 warnings`，退出码 0；`torch.compiler.is_compiling()` 门控未破坏 TorchScript/trace。
+- 完整本地 suite：`69 passed, 14 skipped, 978 warnings in 351.31s`，退出码 0；新增项为 dtype 异常恢复，未缩小任何测试范围。
+- Python compileall、五个 SBATCH `bash -n`、fullgraph/图外 positions leaf/模型 compile guard 静态断言、`git diff --check` 全部通过；readiness marker 仍为两个 `not_ready`、零个 `ready`，退出码均为 0。

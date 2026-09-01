@@ -134,5 +134,7 @@ def default_dtype(dtype: torch.dtype):
     """
     init = torch.get_default_dtype()
     torch.set_default_dtype(dtype)
-    yield
-    torch.set_default_dtype(init)
+    try:
+        yield
+    finally:
+        torch.set_default_dtype(init)

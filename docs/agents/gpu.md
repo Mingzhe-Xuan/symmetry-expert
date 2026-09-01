@@ -442,3 +442,36 @@
 - 同步与提交结果：bundle pull 从 `33e9e99` fast-forward 到 exact `9b42742503bb984a9b83125c26d8409d3688e290`，SHA-256 与受管 tree 门控通过；提交完整 suite Job 219。
 - Job 219 终态：`FAILED`, `ExitCode=1:0`, runtime 00:08:26，资源 compute/node221/4 CPU/16 GiB；没有再发生原生 compiler crash。pytest 汇总为 `1 failed, 71 passed, 1 skipped, 1122 warnings, 8 errors in 498.72s`。
 - 新根因：8 个 benchmark setup error 均因 canonical venv 缺 `pytest-benchmark` fixture；唯一 failure 是 PyTorch 2.11 默认 `torch._dynamo.config.trace_autograd_ops=False` 导致 `autograd.grad` 产生 2 个 graph breaks。
+
+## 2026-09-02 00:19 +08:00：c5b 修复 bundle 与 wheel 单次传输
+
+- 用途：GitHub TLS 已连续不可用，沿用成功 fallback；将本地验证的 `c5b1716` Git bundle、pytest-benchmark wheel 和 py-cpuinfo wheel 在一次 SCP 中传到服务器仓库 `.cache/` staging。
+- 权限核对：均为任务临时 cache，不直接覆盖源码或正式 wheelhouse。bundle 仅含 `9b42742..c5b1716`，本地 verify 通过，7,944 字节、SHA-256 `3568f24f…17fb0`；两 wheel 的 size/hash 见环境记录。下一 SSH 第一项仍以 bundle 执行 `git pull`。
+- 传输结果：三文件单次 SCP 退出 0；尚未假定远端完整，下一连接先 pull，再逐文件 size/hash 门控。
+
+## 2026-09-02 00:21 +08:00：c5b 环境重建与完整闭环
+
+- 用途：新 SSH 第一项以 bundle `git pull --ff-only` 到 exact `c5b1716c8d6ea967543372e2f703dad040d59038`；校验三 staging 文件后把两 wheel 原子移入正式 wheelhouse。随后依次执行 setup Job，成功后提交完整 unit、CPU smoke、GPU smoke，并持续监控全部终态/日志。
+- 权限核对：源码仅 Git fast-forward；wheel 仅进入任务依赖 cache；Python venv 由版本化 setup SBATCH 通过 `/usr/bin/python3 -m venv --clear` 重建；所有测试/模型计算均由 Slurm，exact commit 门控不变。
+- 连接结果：bundle pull 成功 fast-forward 到 exact c5b；合并 `printf` 的 checksum stdin 被远端 shell 解析为无效格式，`set -e` 在 wheel 移动和 Slurm 提交前退出。wheel 仍在 staging，没有提交作业。
+
+## 2026-09-02 00:23 +08:00：逐文件 hash 后重试完整闭环
+
+- 用途：新连接第一项再次 bundle pull（预期 already up to date）；三文件改为各自独立 `sha256sum -c`，通过后才移动 wheel、提交 setup，并在 setup 成功后提交完整 unit/CPU/GPU smoke。
+- 权限核对：目标、资源、exact commit 和失败门控与上一连接相同；仅修正轻量校验命令的 shell 格式。
+- setup Job 221：`COMPLETED`, `ExitCode=0:0`, runtime 00:04:44；Python venv、torch `2.11.0+cu128`/CUDA 12.8、pytest-benchmark 5.2.3、py-cpuinfo 9.0.0、editable install、imports 与 `pip check` 全部通过。旧 wheelhouse manifest 不完整，脚本按设计回退在线/缓存安装。
+- unit Job 222：`FAILED`, `ExitCode=1:0`, runtime 00:08:35；pytest 为 `7 failed, 74 passed, 1 skipped, 1194 warnings in 507.59s`。6 个 fullgraph benchmark 暴露图内 `requires_grad_()` 不支持；foundation 暴露跨测试默认 dtype 后的 Float/Double 不一致。
+- 监控脚本在 unit 终态断言处按设计退出，尚未打印 Jobs 223/224 的日志；二者已离队且未被修改。
+
+## 2026-09-02 00:38 +08:00：Jobs 223/224 smoke 终态回收
+
+- 用途：新连接第一项 bundle pull/fallback exact c5b，随后只读获取 CPU/GPU smoke 的 scontrol、stdout/stderr 与 JSON；不重跑、不修改作业。
+- 权限核对：仅回收本任务已完成作业证据，严格指定 Job 223/224。
+- 连接结果：bundle pull already up to date；controller 已清理 Job 223/224，首个 `scontrol` 返回 invalid job id 并触发 `set -e`，尚未读取持久日志。
+
+## 2026-09-02 00:40 +08:00：smoke 持久日志回收重试
+
+- 用途：新连接第一项 bundle pull；把已清理 job 的 scheduler 查询改为可选，直接读取精确 Jobs 223/224 stdout/stderr 与各自 JSON。
+- 权限核对：纯只读证据回收；不以 controller 记录缺失推断成功，必须由脚本的 `status=success`、空 stderr 和 JSON 字段共同判定。
+- 回收结果：Job 223 CPU stdout 为 exact c5b、`status=success`、checkpoint restore true、有限 loss、shape `[8,16]`，stderr 0 字节；Job 224 GPU stdout 为 exact c5b、RTX 5090、CC 12.0、sm_120、torch CUDA 12.8、实际 kernel、checkpoint restore true、`status=success`，stderr 0 字节。两个 JSON 与 stdout 一致。
+- controller 已清理两 job，无法补取 scheduler state/exit code；持久脚本成功尾标记、空 stderr 和完整 JSON 构成成功证据，此限制将在最终报告注明。

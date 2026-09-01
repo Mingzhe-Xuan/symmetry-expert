@@ -1,6 +1,7 @@
 import tempfile
 
 import numpy as np
+import pytest
 import torch
 import torch.nn.functional
 from torch import nn, optim
@@ -11,6 +12,7 @@ from mace.tools import (
     CheckpointState,
     atomic_numbers_to_indices,
 )
+from mace.tools import torch_tools
 
 
 def test_atomic_number_table():
@@ -19,6 +21,18 @@ def test_atomic_number_table():
     indices = atomic_numbers_to_indices(array, z_table=table)
     expected = np.array([1, 1, 0], dtype=int)
     assert np.allclose(expected, indices)
+
+
+def test_default_dtype_restored_after_error():
+    initial = torch.get_default_dtype()
+    temporary = torch.float32 if initial == torch.float64 else torch.float64
+
+    with pytest.raises(RuntimeError, match="sentinel"):
+        with torch_tools.default_dtype(temporary):
+            assert torch.get_default_dtype() == temporary
+            raise RuntimeError("sentinel")
+
+    assert torch.get_default_dtype() == initial
 
 
 class MyModel(nn.Module):

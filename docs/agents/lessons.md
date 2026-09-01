@@ -29,3 +29,4 @@
 - foundation 下载函数会直接写正式 cache 名；连接中断会留下被下次误认为有效的半文件。服务器慢网下应使用本地已验证文件、独立 staging、断点续传、size/SHA-256/zip 三重校验和同文件系统原子改名。
 - 原生 compiler 崩溃先以精确 pytest node id 在 Slurm 中复现，并隔离每-job 编译 cache、线程配置；只有保留原 backend、dtype、forward/forces backward 与数值断言的配置通过，才能进入完整套件，不能用 skip/xfail/eager 规避。
 - 完整测试清单中的 plugin fixture 也是可复现环境依赖；选定子集可能掩盖 `pytest-benchmark` 之类 collection/setup 缺口。requirements 增加依赖时，离线 wheelhouse 的启用条件也必须同步扩展为新 wheel 的精确 hash 门控，否则“旧 manifest 通过”不代表新 requirements 可离线安装。
+- generator contextmanager 修改全局状态时必须用 `try/finally` 恢复；正常路径测试不足以证明隔离性。Job 222 的 compile benchmark 异常让 default dtype 泄漏到后续 foundation，表现成无关的 Float/Double mismatch；应以异常路径恢复回归锁定根因，而不是调整 foundation 顺序或 dtype 断言。
