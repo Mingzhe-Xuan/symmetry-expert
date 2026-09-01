@@ -62,3 +62,9 @@
 
 - 用途：去除命令替换与嵌套引号，以简单链式命令在新连接中先限时 `git pull --ff-only`，再输出 HEAD/origin/status；成功后另行提交 exact HEAD 作业。
 - 权限核对：与前两次相同；此次只执行 pull 和只读 Git 核对，不在同一命令内提交作业。
+- 连接尝试 3 结果：`git pull --ff-only` 成功，Guqq fast-forward 到 `33f7b926227f434a3a6e1ad64742cf7e9b1996a7`；origin 正确，受管 working/index diff 均为空。
+
+## 2026-09-01 20:58 +08:00：提交完整 readiness 作业
+
+- 用途：新连接先 pull 含本记录的最新 commit 并核对 HEAD；随后在 `compute` 分区提交完整 unit、CPU smoke 和 `gpu:1` GPU smoke，立即返回三个 job ID。
+- 权限核对：版本化 SBATCH 的 pytest、模型与 CUDA 负载均由 Slurm 执行；登录节点仅做 pull、精确状态核对和 `sbatch` 提交，符合规范。
