@@ -88,3 +88,11 @@
 - 四个实际 SBATCH 文件的 `bash -n`：通过，退出码 0；静态核对 unit 命令为完整 `python -m pytest ELoRA/tests -q`。
 - `git diff --check`：通过，退出码 0（仅 Git 的 LF/CRLF 工作区提示）。
 - 两次 foundation 定向复测曾因调用点补丁误落在同文件的相邻测试而失败；最终逐一核对四处 helper 调用，只有 foundation 显式关闭孤立原子零能量断言，完整套件随后通过。
+
+## 2026-09-01：服务器 pull 重试记录提交（计划）
+
+- 仅修改 `docs/agents/gpu.md` 和追加本检查记录；检查 `git diff --check`、readiness 仍为两个 `not_ready`/零个 `ready`、服务器连接记录包含首次超时和下一次 pull 前置条件。
+
+### commit 前实际结果
+
+- `git diff --check`、readiness marker 计数和连接记录字段断言全部通过，退出码 0；本提交不修改业务代码或测试脚本。
