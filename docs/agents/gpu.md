@@ -56,3 +56,9 @@
 
 - 用途：新连接仍首先执行 `git pull --ff-only`，但用 45 秒外层 timeout 避免 GitHub 停滞；只有 pull 成功并核对 exact HEAD 后才提交完整 Slurm 验证。
 - 权限核对：与上一连接相同；短超时只限制网络等待，不绕过 pull 前置条件，不使用旧 refs 代替新 commit。
+- 连接尝试 2 结果：远端 shell 因本地/远端嵌套引号不匹配而在解析阶段退出，未执行 `git pull`、状态检查或 Slurm 操作。
+
+## 2026-09-01 20:55 +08:00：简化命令重连
+
+- 用途：去除命令替换与嵌套引号，以简单链式命令在新连接中先限时 `git pull --ff-only`，再输出 HEAD/origin/status；成功后另行提交 exact HEAD 作业。
+- 权限核对：与前两次相同；此次只执行 pull 和只读 Git 核对，不在同一命令内提交作业。

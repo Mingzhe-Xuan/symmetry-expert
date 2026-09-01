@@ -33,3 +33,4 @@
 - 2026-09-01 17:49 +08:00：完整本地套件暴露 Windows `PYTHONPATH` 分隔符和旧 foundation pickle/state-dict 的 adapter 向后兼容缺口；增加对应测试单元后继续修复，不缩小测试范围。
 - 2026-09-01 20:46 +08:00：兼容性与完成审计修复通过完整本地套件（67 passed、14 skipped）、CPU smoke、compile、SBATCH syntax 和 diff 检查；下一步提交推送并在 Guqq 对 exact commit 执行完整 Slurm 闭环。
 - 2026-09-01 20:52 +08:00：Guqq 首次同步新提交时 GitHub 443 连接超时，未执行任何 Slurm 操作；按既有网络经验改为短超时重连，仍强制 pull 成功与 exact HEAD 一致后才提交作业。
+- 2026-09-01 20:55 +08:00：第二次连接因嵌套引号解析失败而未执行远端命令；下一次拆分为简单 pull/核对连接，避免跨 shell 命令替换。
