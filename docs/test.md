@@ -1,5 +1,11 @@
 # Goal 0 测试记录
 
+## 2026-09-01：`docs/requirements.txt`（计划，等待 commit 后执行）
+
+- 检查 canonical requirements 与旧兼容入口是否可由 pip 正确解析，并确认锁定的 19 个直接依赖未变化。
+- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：验证修改后的 Slurm setup shell syntax。
+- `python -m pytest ELoRA/tests/test_elora_readiness.py ELoRA/tests/test_modules.py ELoRA/tests/test_models.py ELoRA/tests/test_data.py -q`：对应 readiness 回归套件。
+
 ## 2026-09-01 本地相关测试
 
 环境：Windows，Python 3.12.7，PyTorch 2.13.0 CPU，e3nn 0.4.4，ASE 3.22.1；cache 均在仓库内。

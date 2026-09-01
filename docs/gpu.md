@@ -40,3 +40,11 @@
 - 计划操作：只读核对 origin、分支和状态；仅在工作树干净时执行 `git pull --ff-only`，随后记录 commit。不运行项目代码或提交 Slurm 作业。
 - 权限核对：符合 `docs/AGENTS.md` 中服务器负责 `git pull` 同步的范围。
 - 结果：先核对 `/home/xmz/symmetry-expert` 的 origin、`main` 分支、commit 与工作树，确认工作树干净；随后 `git pull --ff-only` 成功访问 GitHub 并返回 `Already up to date.`。commit 仍为 `b09a25a299b4d0750c56fc5b0379d376ed0694e0`。随后执行 `git fetch --unshallow origin`，仓库已补全为普通非 shallow 仓库；远端当前总计 1 个 commit，工作树保持干净。本次没有运行项目代码或提交 Slurm 作业。
+
+## 2026-09-01: resumable wheelhouse transfer and readiness submission
+
+- Server: `Guqq`.
+- Purpose: resume the interrupted local-to-server wheelhouse upload with a workspace-local `rsync` client, then submit the versioned setup and readiness checks through Slurm after the upload is complete.
+- Planned operations: first run `git pull --ff-only` in `/home/xmz/symmetry-expert`; inspect commit/status and transfer progress; use only `rsync`/SSH transport to populate the ignored `.cache/wheelhouse`; submit `setup_readiness.sbatch`, selected unit tests, CPU smoke, and RTX 5090 GPU smoke; inspect scheduler state and logs.
+- Permission check: Git synchronization, SCP-equivalent file transfer, read-only server inspection, and Slurm submission are within `docs/AGENTS.md`. No package installation, testing, computation, direct file editing, or internet download will run on the login node.
+- Status: connected successfully; `git pull --ff-only` reported up to date at `522b348af15a6ed07a18edd46569c04ee6a7f507`, `/usr/bin/rsync` is available, and `compute` is up with `gpu:1`. The known unrelated untracked `net.sh` remains untouched. No wheel transfer or Slurm job was started before the requirements update. Local portable `rsync` 3.5.0 and its `popt` dependency were downloaded from official MSYS2 packages into ignored `.cache` and verified against the published SHA-256 values.

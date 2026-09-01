@@ -40,7 +40,7 @@ cd "${PROJECT_DIR}"
 
 /usr/bin/python3 -m venv --clear "${VENV_DIR}"
 "${VENV_DIR}/bin/python" -m pip install --no-index --find-links "${WHEELHOUSE}" --upgrade pip setuptools wheel
-"${VENV_DIR}/bin/python" -m pip install --no-index --find-links "${WHEELHOUSE}" -r ELoRA/requirements-readiness.txt
+"${VENV_DIR}/bin/python" -m pip install --no-index --find-links "${WHEELHOUSE}" -r docs/requirements.txt
 "${VENV_DIR}/bin/python" -m pip install --no-index --no-deps -e ELoRA
 "${VENV_DIR}/bin/python" -m pip check
 "${VENV_DIR}/bin/python" - <<'PY'

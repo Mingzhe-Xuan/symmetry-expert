@@ -17,7 +17,7 @@
 - 固定路径：`/home/xmz/symmetry-expert/.venv`
 - Python：系统 `/usr/bin/python3` 3.10.12，仅用于建立项目 venv。
 - PyTorch：2.11.0 CUDA 12.8 wheel。
-- e3nn：0.4.4；ASE 3.22.1；其余精确版本见 `ELoRA/requirements-readiness.txt`。
+- e3nn：0.4.4；ASE 3.22.1；完整的直接依赖精确版本以 `docs/requirements.txt` 为唯一清单；`ELoRA/requirements-readiness.txt` 仅作为兼容入口引用该文件。
 - 安装脚本：`ELoRA/scripts/slurm/setup_readiness.sbatch`。
 - 安装源：本地生成并经 SCP 传输的 `/home/xmz/symmetry-expert/.cache/wheelhouse`；Slurm 内使用 `pip --no-index`，安装前执行 `sha256sum --check SHA256SUMS`。
 - 本地 wheelhouse：50 个 wheel，连同 manifest 共 936,197,999 bytes（892.83 MiB）；`SHA256SUMS` 全部 50 项验证通过。`python-hostlist` 1.23.0 是 Python 3.10 发布但仅有 sdist，已在本地构建为纯 Python universal wheel。
