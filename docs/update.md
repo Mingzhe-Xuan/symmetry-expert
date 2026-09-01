@@ -4,7 +4,7 @@
 
 - 按用户要求新增 `docs/requirements.txt`，固定 Guqq 的 Python 3.10.12 / Linux x86_64 环境直接依赖，并声明官方 PyTorch CUDA 12.8 wheel 索引。
 - Slurm setup 改为直接读取该清单；旧 `ELoRA/requirements-readiness.txt` 保留为兼容引用，避免两份版本锁定漂移。
-- 计划在本次 commit 后运行 requirements 一致性检查、SBATCH shell syntax，以及对应 readiness 单元测试。
+- 环境清单 commit：`c906ec5`。提交后目标平台 pip 离线解析、SBATCH shell syntax 均通过；readiness 回归在工作区临时目录下 40 passed。
 
 ## 2026-09-01：Goal 0 ELoRA 对称专家本地实现
 

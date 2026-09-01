@@ -1,10 +1,11 @@
 # Goal 0 测试记录
 
-## 2026-09-01：`docs/requirements.txt`（计划，等待 commit 后执行）
+## 2026-09-01：`docs/requirements.txt`（commit `c906ec5` 后验证）
 
-- 检查 canonical requirements 与旧兼容入口是否可由 pip 正确解析，并确认锁定的 19 个直接依赖未变化。
-- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：验证修改后的 Slurm setup shell syntax。
-- `python -m pytest ELoRA/tests/test_elora_readiness.py ELoRA/tests/test_modules.py ELoRA/tests/test_models.py ELoRA/tests/test_data.py -q`：对应 readiness 回归套件。
+- 目标平台 pip dry-run：使用本地 wheelhouse、CPython 3.10、`manylinux_2_28`/`manylinux_2_17`/`manylinux2014`，成功离线解析 19 个固定直接依赖和全部传递依赖；选择 `torch-2.11.0+cu128`，退出码 0。
+- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：通过，退出码 0。
+- readiness 回归首次运行有 37 passed、3 errors；3 个 error 均发生在 `tmp_path` fixture setup，原因为受限的系统 `%TEMP%/pytest-of-asus`，没有代码断言失败。
+- 使用工作区 `--basetemp ../.cache/pytest-c906ec5` 重跑相同四文件套件：40 passed，退出码 0。
 
 ## 2026-09-01 本地相关测试
 
