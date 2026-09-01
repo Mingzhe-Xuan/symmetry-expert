@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --output=/home/xmz/symmetry-expert/slurm-%x-%j.out
 #SBATCH --error=/home/xmz/symmetry-expert/slurm-%x-%j.err
 #SBATCH --signal=B:TERM@60

@@ -15,3 +15,4 @@
 - 最终文档检查通过后清理本任务本地临时文件约 1.64 GiB；保留来源不明的 `.cache/uv`，服务器原始作业证据未删除。
 - Goal 0 完成审计发现 Job 205 只跑选定测试文件，且 `evaluate()` 会破坏 requires-grad 白名单；先前 `ready` 结论撤回，按预注册测试修复后重走本地提交与 Guqq Slurm 闭环。
 - 完成审计修复及兼容性加固：评估精确恢复梯度白名单、旧 foundation state/pickle 与 TorchScript 兼容、数据逐类统计补全、冻结路由刚体变换/置换测试、跨平台测试入口和完整 Slurm unit 命令均已实现；本地完整套件 `67 passed, 14 skipped`，CPU smoke 与静态检查通过，进入提交及 Guqq 完整 Slurm 复验。
+- Guqq Jobs 209/210 CPU 与 RTX 5090 GPU smoke 成功；完整 unit Job 208 保持全套测试但在 28:33 收到 Slurm SIGTERM，未出现 pytest 断言失败。readiness 保持 not_ready，仅扩大 unit wall time 后重投。

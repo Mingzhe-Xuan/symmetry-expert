@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- Goal 0 完成审计修复已通过本地完整门控，readiness 仍为 `not_ready`：等待同一已推送提交在 Guqq 通过完整 Slurm unit、CPU smoke 和 RTX 5090 GPU smoke，并回填最终证据。
+- Goal 0 本地完整门控及 Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：完整 unit Job 208 因 30 分钟时限窗口收到 SIGTERM，需提高脚本时限后在新 exact commit 重投。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
 - 用户拥有的 `ELoRA/README.md` 本地修改保持未提交，除非用户另有指示；最新版 `docs/AGENTS.md` 已随实现提交。
@@ -35,3 +35,4 @@
 - 2026-09-01 20:52 +08:00：Guqq 首次同步新提交时 GitHub 443 连接超时，未执行任何 Slurm 操作；按既有网络经验改为短超时重连，仍强制 pull 成功与 exact HEAD 一致后才提交作业。
 - 2026-09-01 20:55 +08:00：第二次连接因嵌套引号解析失败而未执行远端命令；下一次拆分为简单 pull/核对连接，避免跨 shell 命令替换。
 - 2026-09-01 20:58 +08:00：Guqq 已成功 pull 到 `33f7b92` 且受管工作树干净；下一连接在再次 pull 最新记录 commit 后提交三个 readiness Slurm 作业。
+- 2026-09-01 21:41 +08:00：Jobs 209/210 CPU/GPU smoke 成功；完整 unit Job 208 在 28:33 被 Slurm SIGTERM，未产生测试失败摘要。保持完整套件，计划仅把 unit wall time 从 30 提高到 60 分钟后重投。

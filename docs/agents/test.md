@@ -104,3 +104,14 @@
 ## 2026-09-01：Slurm 提交连接记录（计划与结果）
 
 - 仅追加 pull 成功证据与下一连接的作业提交计划；提交前 `git diff --check` 和 readiness marker 计数均通过，退出码 0；业务代码与 Slurm 脚本未改变。
+
+## 2026-09-01：完整 unit Slurm 时限修复（计划）
+
+- Job 208 在完整 `ELoRA/tests -q` 运行 28:33 后收到 SIGTERM，`FAILED`, `ExitCode=0:15`；stdout 只有启动命令，stderr 明确为 Slurm cancellation/terminated，无 pytest 断言失败摘要。
+- 修复单元：仅把 `unit_readiness.sbatch` 的 wall time 从 30 分钟提高到 60 分钟，保留完整测试命令、CPU/memory、exact-commit 门控和失败 trap 不变；不删减或跳过测试。
+- commit 前检查：四个 SBATCH `bash -n`、静态断言 unit 的 `--time=01:00:00` 且命令精确为 `python -m pytest ELoRA/tests -q`、`git diff --check`、readiness marker 仍为 not_ready。
+- Guqq 集成：在新 exact commit 上重投完整 unit；必须出现 pytest 完整通过汇总、`status=success` 和 scheduler `COMPLETED`, `ExitCode=0:0`。
+
+### commit 前实际结果
+
+- 四个 SBATCH `bash -n`、60 分钟时限唯一匹配、完整 pytest 命令唯一匹配、`git diff --check` 与 not_ready marker 断言全部通过，退出码 0；业务代码和测试内容未改变。
