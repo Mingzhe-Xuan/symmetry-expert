@@ -55,4 +55,7 @@
 - Purpose: pull the tested requirements/setup commits and submit the environment setup through Slurm, using the newly authorized server internet access only when the transferred wheelhouse is incomplete.
 - Planned operations: `git pull --ff-only` first; submit `setup_readiness.sbatch` with the exact commit; inspect `squeue`, `scontrol`, and job logs. The compute job may download required libraries/packages/wheels from PyPI and the official PyTorch CUDA 12.8 index into `/home/xmz/symmetry-expert/.cache/pip`.
 - Permission check: explicitly allowed by the updated `docs/AGENTS.md`. No dependency download, installation, testing, or computation will run directly on the login node.
-- Status: connection not yet opened for this entry.
+- Status: connected; `git pull --ff-only` fast-forwarded Guqq to `1afac68636e8b8a9c2c60f6199b934f1c424ed2f`. Login-node environment checks found Python 3.10.12 and `/usr/bin/curl`. The known unrelated `?? net.sh` remains untouched. Submitted setup Slurm Job 201. The next connection will be a persistent read-only scheduler/log monitoring session and will begin with another `git pull --ff-only`.
+
+- Monitoring result: persistent session began with `git pull --ff-only` (`Already up to date`). Job 201 selected the online fallback but its pip process remained on an unreachable IPv6 socket in `SYN-SENT` for more than 6 minutes. A permitted login-node environment check reached PyPI with HTTP 200 over the working path. Job 201 was cancelled (`CANCELLED`, `ExitCode=0:15`) before changing the timeout strategy; no readiness test was reached.
+- Next action in the same persistent session: after a tested fix is pushed, run `git pull --ff-only` again and submit a replacement setup job with the exact new commit.

@@ -48,7 +48,9 @@ if [[ "${USE_OFFLINE}" == "1" ]]; then
     "${VENV_DIR}/bin/python" -m pip install --no-index --find-links "${WHEELHOUSE}" --upgrade pip setuptools wheel
     "${VENV_DIR}/bin/python" -m pip install --no-index --find-links "${WHEELHOUSE}" -r docs/requirements.txt
 else
-    PIP_NETWORK_ARGS=(--timeout 120 --retries 20)
+    # Guqq advertises IPv6 routes that can remain in SYN-SENT; a short connect
+    # timeout lets pip/urllib3 fall through to the working IPv4 address quickly.
+    PIP_NETWORK_ARGS=(--timeout 10 --retries 20)
     "${VENV_DIR}/bin/python" -m pip install "${PIP_NETWORK_ARGS[@]}" --upgrade pip setuptools wheel
     "${VENV_DIR}/bin/python" -m pip install "${PIP_NETWORK_ARGS[@]}" -r docs/requirements.txt
 fi

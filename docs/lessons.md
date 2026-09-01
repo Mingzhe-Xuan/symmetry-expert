@@ -47,3 +47,9 @@ pip install git+https://github.com/hyjwpk/ELoRA.git@main
 3. 连续 3 次中断后停止重试单个大流，改在本地把大文件切为较小分片并为分片生成独立 SHA-256 manifest。
 4. 分片只通过 SCP 传到仓库 `.cache/`；由版本化 Slurm setup job 在 compute 节点校验分片、重组到临时文件、原子替换，并再次用原始 wheelhouse manifest 验证完整 wheel。
 5. 不在登录节点执行重组、哈希或安装；不删除用户文件，也不依赖不稳定连接维持到整个大文件结束。
+
+## Guqq pip 优先 IPv6 导致连接停滞
+
+2026-09-01，setup Job 201 在线升级 pip 时超过 6 分钟无下载进展。登录节点只读检查确认 PyPI 返回 HTTP 200，但 Slurm 中 pip 进程的 socket 一直处于 IPv6 `SYN-SENT`；集群的 IPv4 路径正常，IPv6 路由不可达。
+
+处理原则：保留较多 pip retries 处理短暂抖动，但不要把 connect/read timeout 设得过长。Guqq 在线安装固定使用 `--timeout 10 --retries 20`，使 urllib3 快速跳过不可达 IPv6 地址并尝试 IPv4。出现同样症状时先检查 socket 状态和最小 HTTP HEAD，不要让每个重试等待数分钟。Job 201 已取消，修正后用新 commit 重新提交。
