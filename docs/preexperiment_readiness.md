@@ -1,21 +1,21 @@
 # ELoRA 对称专家预实验就绪性报告
 
-readiness: not_ready
+readiness: ready
 
-日期：2026-09-01
+日期：2026-09-02
 目标：仅完成 Goal 0 工程能力和验证，不运行 Goal 1 正式矩阵。
 
-本地实现 commit：`f42866353c7a778bd2f10963f90aa2159a0687e1`。Guqq 最终验证 commit：`dee1e009b352d209a476af83623e14f71a492300`。
+本地实现与 Guqq 最终验证 commit：`e797570ab0d871227a26f4416b446a0c875c93fb`。
 
 ## 检查点
 
 | 检查点 | 状态 | 证据 |
 |---|---|---|
-| A 论文与仓库审计 | complete locally | `paper.pdf` 23 页方法、实验及附录已核对；实现边界见下表 |
-| B 配置、bank、router | complete locally | readiness 单元测试与真实 MACE 等变性测试 |
-| C 数据统计与 split | complete locally | 合成数据、2000/2001、pre-SG fallback、group leakage 测试 |
-| D checkpoint、统计、smoke | complete locally | checkpoint metadata、merge/unmerge、CPU smoke |
-| E Guqq Slurm | pending revalidation | setup 204 仍证明环境安装；旧 unit 205 只覆盖选定文件，等待新提交的完整 unit、CPU/GPU smoke |
+| A 论文与仓库审计 | complete | `paper.pdf` 23 页方法、实验及附录已核对；实现边界见下表 |
+| B 配置、bank、router | complete | readiness 单元测试与真实 MACE 等变性测试 |
+| C 数据统计与 split | complete | 合成数据、2000/2001、pre-SG fallback、group leakage 测试 |
+| D checkpoint、统计、smoke | complete | checkpoint metadata、merge/unmerge、exact e797 CPU/GPU smoke |
+| E Guqq Slurm | complete | Job 225 完整 suite 与 Jobs 227/228 双 smoke 全绿 |
 
 ## 论文逻辑与实现映射
 
@@ -46,7 +46,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 7. 参数/optimizer/非零梯度/内存：`parameter_statistics`。
 8. 数据 10–13、16：合成统计产物、计数守恒、threshold、split leakage、2000/2001 和 pre-SG fallback tests。
 9. router 14：冻结 symmetry/random labels来自 manifest；learned router只读 invariant features，测试旋转/平移/置换不改输入与路由。
-10. GPU 15：Guqq Job 207 在 RTX 5090 上证明 CC 12.0、`sm_120`、torch CUDA 12.8、实际 CUDA kernel、forward/backward 与 checkpoint restore。
+10. GPU 15：Guqq Job 228 在 RTX 5090 上证明 CC 12.0、`sm_120`、torch CUDA 12.8、实际 CUDA kernel、forward/backward 与 checkpoint restore。
 
 ## 可复现入口
 
@@ -67,20 +67,26 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 
 ## 最终门控结果
 
-- 最终本地门控已通过：selected 40 passed、training CLI 3 passed、CPU smoke/compile/shell/diff checks 全部退出码 0。
-- 实现与证据 commit 已推送；`601f45c` 的 post-commit 本地门控为 43 passed，CPU smoke 成功。
-- 50-wheel offline wheelhouse 曾在本地通过 SHA-256 全量校验；因 SSH 大文件传输不稳定，最终使用已授权的服务器在线依赖路径，清华 PyPI 主索引 + 官方 PyTorch cu128 extra index。
-- Guqq setup Job 204：`COMPLETED`, `ExitCode=0:0`；Python 3.10.12 venv、editable MACE 0.3.5、`pip check`、torch 2.11.0+cu128 / CUDA 12.8 与固定依赖 import 全部通过。
-- Guqq unit Job 205：`COMPLETED`, `ExitCode=0:0`；40 passed。
-- Guqq CPU smoke Job 206：`COMPLETED`, `ExitCode=0:0`；forward/backward、checkpoint restore 与 JSON 产物成功。
-- Guqq GPU smoke Job 207：`COMPLETED`, `ExitCode=0:0`；RTX 5090、CC 12.0、`sm_120_supported=true`、实际 CUDA kernel、forward/backward、checkpoint restore 与 JSON 产物成功。
-- stdout/stderr 与 smoke JSON 已经 SCP 回本地核验；unit/CPU/GPU stderr 均为空。Goal 0 readiness 门控全部完成，未启动 Goal 1。
+- 本地 Python venv 完整套件：`69 passed, 14 skipped, 978 warnings in 351.31s`；Windows 跳过 Linux/CUDA compile 用例。dtype 异常恢复、JIT、CPU smoke、compileall、5 个 SBATCH syntax、fullgraph 静态门控和 diff 检查全部通过。
+- Guqq setup Job 221：`COMPLETED`, `ExitCode=0:0`, runtime 00:04:44；`/usr/bin/python3 -m venv` 创建 Python 3.10.12 环境，torch `2.11.0+cu128` / CUDA 12.8、pytest-benchmark 5.2.3、py-cpuinfo 9.0.0、editable MACE 0.3.5、imports 与 `pip check` 全部通过。
+- Guqq unit Job 225：exact e797，compute/node221/4 CPU/16 GiB，`COMPLETED`, `ExitCode=0:0`, runtime 00:22:32；完整命令 `python -m pytest ELoRA/tests -q`，结果 `82 passed, 1 skipped, 1201 warnings in 1341.62s`，8 个 benchmark 全部真实执行，stderr 为空。唯一 skip 是未安装可选 `schedulefree` 时该模块的声明式跳过，不影响 Goal 0 要求。
+- Guqq CPU Job 227：exact e797，2 CPU/8 GiB，`COMPLETED`, `ExitCode=0:0`, runtime 00:00:04；forward/backward、checkpoint restore、有限 loss、shape `[8,16]` 与 JSON 成功，stderr 为空。
+- Guqq GPU Job 228：exact e797，4 CPU/16 GiB/`gres:gpu:1`，`COMPLETED`, `ExitCode=0:0`, runtime 00:00:05；RTX 5090、CC 12.0、`sm_120_supported=true`、torch CUDA 12.8、实际 CUDA kernel、forward/backward、checkpoint restore 与 JSON 成功，stderr 为空。
+- 服务器原始证据：`/home/xmz/symmetry-expert/slurm-elora-{env-221,unit-225,cpu-smoke-227,gpu-smoke-228}.{out,err}` 与 `ELoRA/artifacts/readiness/{cpu-smoke,gpu-smoke}.json`。SCP 回传后内容、JSON 和 stderr 字节数独立核验通过。
+- Slurm script SHA-256：setup `b8d15390…3160d`；unit `5647ce58…fa39`；CPU `9b2ab606…a5d8`；GPU `bdf15209…65f0`。
 
-## 完成审计重新打开
+## 完成审计与最终闭环
 
 - 2026-09-01 逐条复核 Goal 原文后确认：Job 205 的命令只包含 4 个选定测试文件，并非要求的完整 `ELoRA/tests`。
 - 代码审计发现 `mace.tools.train.evaluate()` 会把评估前冻结的参数在评估后统一设为可训练，破坏 scope/update 白名单。
 - 在修复、完整本地测试和同一已推送提交的 Guqq Slurm 完整测试/CPU/GPU smoke 全部通过并回填证据前，旧 Jobs 204–207 只作为历史证据，不能支持完成结论。
-- 本地修复门控已完成：完整 `ELoRA/tests` 为 `67 passed, 14 skipped`；CPU smoke、Python compile、四个 SBATCH syntax 与 `git diff --check` 均退出码 0。readiness 继续保持 `not_ready`，直到新提交的 Guqq 闭环完成。
+- 审计修复最终覆盖评估梯度白名单、逐类数据统计、冻结 router 刚体变换/置换不变性、旧 foundation state/pickle、TorchScript、完整 Slurm suite、compiler cache/线程隔离、PyTorch 2.11 autograd tracing、fullgraph 图外梯度 leaf 和异常路径 dtype 恢复。
+- exact e797 的完整 Guqq 闭环已完成；上述旧 Jobs 204–207 仅保留为历史，不再作为最终完成依据。
 
-readiness: not_ready
+## 已知限制
+
+- `schedulefree` 是仓库可选依赖，未列入 Goal 0 canonical requirements；其独立测试模块按源码声明跳过 1 项。所有 Goal 0 强制功能、compile、benchmark、CPU/GPU smoke 均已运行通过。
+- setup Job 221 发现旧 wheelhouse manifest 缺文件/不匹配，因而按版本化脚本回退到授权的在线/缓存安装；setup stderr 保留 607 字节 hash 诊断，但 job、`pip check`、版本与 imports 全部成功。unit/CPU/GPU stderr 均为 0 字节。
+- 本报告只证明正式预实验的工程就绪性；未运行 Goal 1 数据统计或训练矩阵，也不包含科学性能结论。
+
+readiness: ready

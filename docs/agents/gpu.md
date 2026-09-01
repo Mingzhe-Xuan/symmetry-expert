@@ -475,3 +475,23 @@
 - 权限核对：纯只读证据回收；不以 controller 记录缺失推断成功，必须由脚本的 `status=success`、空 stderr 和 JSON 字段共同判定。
 - 回收结果：Job 223 CPU stdout 为 exact c5b、`status=success`、checkpoint restore true、有限 loss、shape `[8,16]`，stderr 0 字节；Job 224 GPU stdout 为 exact c5b、RTX 5090、CC 12.0、sm_120、torch CUDA 12.8、实际 kernel、checkpoint restore true、`status=success`，stderr 0 字节。两个 JSON 与 stdout 一致。
 - controller 已清理两 job，无法补取 scheduler state/exit code；持久脚本成功尾标记、空 stderr 和完整 JSON 构成成功证据，此限制将在最终报告注明。
+
+## 2026-09-02 00:51 +08:00：e797 bundle 传输
+
+- 用途：GitHub TLS 状态未知但已有可靠 fallback；将 exact e797 Git bundle 以单次 SCP 传到服务器 `.cache/elora-e797570.bundle`，供下一连接第一项 `git pull`。
+- 权限核对：bundle 仅含已推送 `c5b1716..e797570`，本地 verify 通过，6,994 字节，SHA-256 `a3f0b7bc…94b4d`；不覆盖源码或环境。
+- 传输结果：SCP 退出 0；下一连接仍逐文件 hash 后才使用。
+
+## 2026-09-02 00:52 +08:00：exact e797 完整 unit 与双 smoke
+
+- 用途：新 SSH 第一项从 bundle fast-forward pull 到 exact e797，核对 hash/tree；提交完整 unit、CPU smoke、GPU smoke，持久监控并在读取所有日志后逐项断言终态。
+- 权限核对：环境沿用已通过 Job 221 的 Python venv，依赖未变化无需重建；业务代码已变化，故 CPU/GPU smoke 与完整 suite 全部在 exact e797 重跑。计算均由 Slurm。
+- unit Job 225：`COMPLETED`, `ExitCode=0:0`, runtime 00:22:32，compute/node221/4 CPU/16 GiB；完整 `ELoRA/tests -q` 为 `82 passed, 1 skipped, 1201 warnings in 1341.62s`，8 个 benchmark 均真实运行，stdout 尾标 `status=success`，stderr 为空。
+- CPU Job 227：`COMPLETED`, `ExitCode=0:0`, runtime 00:00:04，2 CPU/8 GiB；checkpoint restore true、有限 loss、shape `[8,16]`、`status=success`、stderr 0 字节。
+- GPU Job 228：`COMPLETED`, `ExitCode=0:0`, runtime 00:00:05，4 CPU/16 GiB/`gres:gpu:1`；RTX 5090、CC 12.0、sm_120、torch CUDA 12.8、实际 kernel、checkpoint restore、`status=success`，stderr 0 字节。
+
+## 2026-09-02 01:17 +08:00：最终日志与 JSON 回传
+
+- 用途：单次 SCP 回传 setup 221、unit 225、CPU 227、GPU 228 的 stdout/stderr 及最新 CPU/GPU JSON 到本地 `.cache/final-e797-evidence/`，逐文件核验后删除本地副本；服务器原始证据保留。
+- 权限核对：规范允许本地 SCP 结果数据；仅只读复制本任务文件，不修改服务器状态。
+- 回传结果：10 个精确文件 SCP 退出 0；setup/unit 关键版本与摘要、三个测试 stderr 0 字节、CPU/GPU JSON 字段和全部文件 SHA-256 均独立核验通过。服务器原始证据保留。

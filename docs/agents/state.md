@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- Goal 0 本地完整门控及 exact c5b Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：Job 222 暴露 fullgraph 输入梯度准备和异常时 dtype 泄漏；upstream-aligned 修复已通过本地完整 suite，等待提交及 Guqq 定向/完整复验。
+- Goal 0 的本地完整门控、exact e797 Guqq setup/unit/CPU/GPU、证据回传与 readiness 报告均已完成；正在执行最终文档一致性检查、提交和任务临时文件清理，尚未启动 Goal 1。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
 - 用户拥有的 `ELoRA/README.md` 本地修改保持未提交，除非用户另有指示；最新版 `docs/AGENTS.md` 已随实现提交。
@@ -43,3 +43,4 @@
 - 2026-09-01 23:42 +08:00：Job 217 独立缓存仍 abort；Job 218 独立缓存加单线程完整通过 fp32/fp64 真实 compile。采用已验证 profile 更新正式 unit，下一步 commit 前检查、提交推送并重跑完整 suite。
 - 2026-09-02 00:03 +08:00：Job 219 不再原生崩溃，运行完整 suite 后明确暴露 `pytest-benchmark` 缺失与 PyTorch 2.11 autograd trace 配置两个缺口；预注册环境、编译回归和完整重跑门控。
 - 2026-09-02 00:48 +08:00：Jobs 223/224 exact c5b smoke 持久证据全绿；fullgraph 输入梯度移到图外、dtype context 异常恢复已实现，本地完整 suite `69 passed, 14 skipped`，进入提交前静态门控。
+- 2026-09-02 01:16 +08:00：exact e797 Job 225 完整 suite `82 passed, 1 skipped`，Jobs 227/228 CPU/GPU smoke 全部 `COMPLETED/0:0`；进入最终证据/报告/清理阶段。

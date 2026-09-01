@@ -25,3 +25,5 @@
 - Job 219 证明仓库完整 suite 需要 `pytest-benchmark` 提供 `benchmark` fixture；canonical `docs/requirements.txt` 新增 `pytest-benchmark==5.2.3` 与其固定传递依赖 `py-cpuinfo==9.0.0`。
 - 离线 wheel：`pytest_benchmark-5.2.3-py3-none-any.whl`，45,255 字节，SHA-256 `bc839726ad20e99aaa0d11a127445457b4219bdb9e80a1afc4b51da7f96b0803`；`py_cpuinfo-9.0.0-py3-none-any.whl`，22,335 字节，SHA-256 `859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5`。
 - setup offline gate 会单独校验这两个新增 wheel；Guqq Python venv 重建与 `pip check` 尚待 exact commit 的 setup Slurm 验收。
+- Guqq setup Job 221：`COMPLETED`, `ExitCode=0:0`, runtime 00:04:44；Python 3.10.12、torch `2.11.0+cu128` / CUDA 12.8、pytest-benchmark 5.2.3、py-cpuinfo 9.0.0、editable MACE 0.3.5、imports 与 `pip check` 全部成功。
+- 旧 wheelhouse `SHA256SUMS` 缺 7 文件且 1 文件 hash 不匹配，故版本化 setup 正确选择在线/缓存 fallback；正式 `.venv` 的最终版本与 canonical requirements 一致，不使用本地 Windows 宿主环境作为安装证据。

@@ -23,3 +23,5 @@
 - Jobs 217/218 完成对照：独立 compiler cache 仍 abort，而独立 cache + 单线程的 fp32/fp64 真实 compile 全绿；正式 unit 将采用后者并保持完整测试范围。
 - Job 219 证明正式单线程配置消除 compiler crash；完整 suite 进一步发现 canonical venv 缺 benchmark plugin，以及 PyTorch 2.11 需要显式 autograd tracing。readiness 保持 not_ready，进入依赖与 upstream-compatible 修复。
 - Job 221 环境全绿；Job 222 将剩余失败收敛到 fullgraph 图内梯度突变和异常路径 dtype 泄漏。采用 upstream 的图外 positions leaf 约定并给 dtype context 加 finally，本地完整 suite 69 passed。
+- exact e797 最终闭环全绿：Job 225 完整 suite 82 passed、1 skipped，Jobs 227/228 CPU/GPU smoke 均完成且 stderr 为空；进入最终 readiness 文档与临时证据清理。
+- 最终 10 文件证据回传与独立断言通过；readiness 报告已回填 exact e797、Jobs 221/225/227/228、脚本 hash、日志路径和已知限制，准备最终文档提交。

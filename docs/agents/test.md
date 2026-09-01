@@ -229,3 +229,27 @@
 - 模型/JIT 回归：完整 `test_models.py` 为 `3 passed, 350 warnings`，退出码 0；`torch.compiler.is_compiling()` 门控未破坏 TorchScript/trace。
 - 完整本地 suite：`69 passed, 14 skipped, 978 warnings in 351.31s`，退出码 0；新增项为 dtype 异常恢复，未缩小任何测试范围。
 - Python compileall、五个 SBATCH `bash -n`、fullgraph/图外 positions leaf/模型 compile guard 静态断言、`git diff --check` 全部通过；readiness marker 仍为两个 `not_ready`、零个 `ready`，退出码均为 0。
+
+### Guqq 门控顺序调整
+
+- 完整 unit 在当前稳定配置仅约 8:35，且精确包含 6 个 fullgraph benchmark、graph-break、fp32/fp64 CPU/CUDA compile 及所有其他测试；因此直接运行完整 suite 是定向集合的严格超集，可同时给出更强的跨测试 dtype 隔离证据。
+- 不创建临时/未版本化的定向 Slurm 命令；exact e797 上直接提交版本化完整 unit，并并行重跑 CPU/GPU smoke。测试范围、fullgraph 和断言均不降低。
+
+### Guqq exact e797 实际结果
+
+- Job 225 unit：`COMPLETED`, `ExitCode=0:0`, runtime 00:22:32；`82 passed, 1 skipped, 1201 warnings in 1341.62s`，完整命令 `python -m pytest ELoRA/tests -q`，8 个 benchmark 表均存在，stderr 为空。
+- Job 227 CPU smoke：`COMPLETED`, `ExitCode=0:0`, runtime 00:00:04；checkpoint restore、有限 loss、shape 与 JSON 全部通过，stderr 0 字节。
+- Job 228 GPU smoke：`COMPLETED`, `ExitCode=0:0`, runtime 00:00:05；RTX 5090、CC 12.0、sm_120、torch CUDA 12.8、实际 CUDA kernel、checkpoint restore 与 JSON 全部通过，stderr 0 字节。
+- 三项均为 exact commit `e797570ab0d871227a26f4416b446a0c875c93fb`；持久监控最终输出 `ALL_E797_READINESS_JOBS=PASS`。
+
+### 最终证据核验
+
+- SCP 回传 setup 221、unit 225、CPU 227、GPU 228 的 8 个 stdout/stderr 和 2 个 JSON，精确文件数为 10。
+- setup stdout 断言 cu128/CUDA 12.8/pytest-benchmark 5.2.3/py-cpuinfo 9.0.0/`pip check`/成功尾标；unit stdout 断言 exact e797、82 passed/1 skipped、8 benchmarks、成功尾标。
+- unit/CPU/GPU stderr 均为 0 字节；CPU/GPU JSON 的 device、shape、checkpoint restore、RTX 5090、CC 12.0、sm_120、CUDA 12.8 与 kernel 字段全部通过；`FINAL_EVIDENCE_ASSERTIONS=PASS`。
+- 最终报告需精确包含 Jobs 221/225/227/228、资源/终态/退出码、日志路径、脚本 hash、可选 schedulefree skip 与 setup online fallback 限制；readiness 首尾均为 ready。
+
+### 最终文档提交前实际结果
+
+- readiness 报告全部必需字段断言通过：exact e797、Jobs 221/225/227/228、82 passed/1 skipped、四脚本 hash 前缀、服务器日志路径、schedulefree 与 setup fallback 限制、未运行 Goal 1。
+- readiness marker 精确为两个 `ready`、零个 `not_ready`；`git diff --check` 通过，退出码 0。
