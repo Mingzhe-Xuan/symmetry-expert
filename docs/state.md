@@ -4,6 +4,8 @@
 
 当前阶段：检查点 D（本地实现与验证）收尾；检查点 E（Guqq Slurm 验证）尚未开始。
 
+2026-09-01 检查点 E 传输调整：单连接上传 820 MB torch wheel 连续中断 3 次。改为本地分片并生成分片哈希，setup Slurm job 在 compute 节点校验、重组，再校验原始 wheelhouse `SHA256SUMS`。提交后测试 `bash -n` 及本地重组哈希等价性。
+
 ## 实现计划
 
 - [x] 完整核对 Goal 0、`docs/AGENTS.md`、论文逻辑、Slurm 规范、预实验方案和本地论文。

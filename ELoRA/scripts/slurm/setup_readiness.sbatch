@@ -25,6 +25,15 @@ ACTUAL_COMMIT="$(git rev-parse HEAD)"
 
 echo "job_id=${SLURM_JOB_ID} host=$(hostname) commit=${ACTUAL_COMMIT}"
 echo "start_time=$(date --iso-8601=seconds)"
+TORCH_PARTS="${WHEELHOUSE}/torch.parts"
+TORCH_WHEEL="${WHEELHOUSE}/torch-2.11.0+cu128-cp310-cp310-manylinux_2_28_x86_64.whl"
+if [[ -d "${TORCH_PARTS}" ]]; then
+    [[ -f "${TORCH_PARTS}/SHA256SUMS" ]] || { echo "missing torch parts manifest" >&2; exit 4; }
+    cd "${TORCH_PARTS}"
+    sha256sum --check SHA256SUMS
+    cat part-* > "${TORCH_WHEEL}.tmp"
+    mv -f "${TORCH_WHEEL}.tmp" "${TORCH_WHEEL}"
+fi
 cd "${WHEELHOUSE}"
 sha256sum --check SHA256SUMS
 cd "${PROJECT_DIR}"

@@ -6,7 +6,8 @@
 - 用途：在本地最终测试、commit/push 和 wheelhouse 哈希完成后，同步固定 commit，并仅通过 Slurm 创建 `/home/xmz/symmetry-expert/.venv`、运行 selected unit、CPU smoke 和 RTX 5090 GPU smoke。
 - 计划操作：先只读核对 origin/branch/clean status、`git pull --ff-only`、commit、`sinfo`/partition/node/GRES；通过 SCP 把本地离线 wheelhouse 放入仓库 `.cache/`；提交四个版本化 sbatch，轮询 `squeue`/`scontrol` 并回传日志和 JSON。
 - 限制：不在登录节点安装、测试、计算或编辑；不使用 `sacct`；不下载正式数据或模型；不进入 Goal 1。
-- 状态：尚未连接，等待本地门控与推送完成。
+- 状态：已连接。Guqq 已 pull 至 `098db4a20def32bdbebfa70e15924ecf61413e13`；`compute` UP、`node221` IDLE、`Gres=gpu:1`。远端仓库仅有既存未跟踪 `net.sh`，未移动、删除或编辑。
+- 传输：50-wheel wheelhouse 中小文件已传输；820 MB torch wheel 的 SCP/SFTP 连接连续中断 3 次，最大保留 offset 约 447 MB。停止重复单流，改用 13 × ≤64 MiB 哈希分片；尚未提交 Slurm job。
 
 ## 2026-09-01 02:19 +08:00
 

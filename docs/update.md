@@ -15,6 +15,13 @@
 - 按更新后的开发规范，在 commit 后运行对应本地测试：43 passed；CPU smoke 成功。
 - 下一阶段为固定最终推送 commit 的 Guqq wheelhouse SCP 与四个 Slurm jobs。
 
+## 2026-09-01：Guqq 大 wheel 分片传输恢复
+
+- Guqq 已 fast-forward 到 `098db4a20def32bdbebfa70e15924ecf61413e13`；`compute/node221/gpu:1` 状态复核通过。
+- 普通 SCP 和 resumable SFTP 在传输 820 MB torch wheel 时累计中断 3 次；已按规范停止同策略重试并把经验写入 `docs/lessons.md`。
+- 新策略把 torch wheel 切为 13 个不超过 64 MiB 的分片；分片 manifest 全部通过，重组 SHA-256 与原 wheel 完全相同。
+- setup Slurm job 将在 compute 节点验证分片、重组、原子替换并再次验证完整 wheelhouse manifest。
+
 ## 2026-09-01：扩展 Introduction 的课题边界
 
 - 将总体动机从单一原子势扩展为等变材料模型的结构域参数高效适配。
