@@ -160,3 +160,21 @@
 
 - 诊断 SBATCH 与 unit SBATCH `bash -n` 通过；两个 profile、每-job Inductor/Triton cache、fp32/fp64 CPU 精确 node ids 静态断言通过；`git diff --check` 与 not_ready marker 检查通过，全部退出码 0。
 - 本地 collect-only 确认 node ids 为 `test_mace[fp32-cpu]` 与 `test_mace[fp64-cpu]`；Windows 按 upstream 标记跳过执行，因此真实运行仅提交 Guqq Slurm。
+
+### Guqq 定向诊断结果
+
+- Job 217 `fresh_cache`：`FAILED`, `ExitCode=134:0`, runtime 00:01:00；fp32 CPU 用例在每-job 新缓存生成的 Inductor forces 双重反向 kernel 中 abort，排除陈旧编译缓存但未排除线程并发。
+- Job 218 `fresh_cache_single_thread`：`COMPLETED`, `ExitCode=0:0`, runtime 00:02:59；同一提交、节点和资源上，fp32/fp64 两个真实 compile 用例均通过，汇总为 `2 passed, 85 warnings in 174.60s`。
+- 结论：正式完整 unit 脚本采用每-job Inductor/Triton cache，以及 `OMP_NUM_THREADS=1`、`MKL_NUM_THREADS=1`、`TORCHINDUCTOR_COMPILE_THREADS=1`；不修改 pytest 范围、backend、断言或 dtype。
+
+## 2026-09-01：正式 unit 单线程稳定配置（计划）
+
+- 修改范围仅为 `unit_readiness.sbatch` 的运行环境：增加每-job Inductor/Triton cache 和 Job 218 已证实有效的三个单线程变量；完整命令保持 `python -m pytest ELoRA/tests -q`。
+- commit 前检查：全部 SBATCH `bash -n`；静态断言四个 cache/thread 变量、完整 pytest 命令和 60 分钟时限；`git diff --check`；readiness 仍为两个 `not_ready`、零个 `ready`。
+- Guqq 集成：commit/push 后新连接先 pull exact commit，再提交完整 unit；必须以 pytest 完整通过汇总、`status=success`、scheduler `COMPLETED` 和 `ExitCode=0:0` 验收。
+
+### commit 前实际结果
+
+- 五个 SBATCH 的 `bash -n` 全部通过，退出码 0。
+- unit 静态断言确认每-job Inductor/Triton cache、三个单线程变量、60 分钟时限及唯一完整 pytest 命令全部存在，退出码 0。
+- `git diff --check` 通过；readiness marker 为两个 `not_ready`、零个 `ready`，退出码 0。

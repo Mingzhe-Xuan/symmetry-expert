@@ -396,3 +396,11 @@
 
 - 用途：本地新增并验证版本化诊断 SBATCH、commit/push 后，新连接先 pull exact commit，提交 fresh per-job cache 与 fresh-cache+single-thread 两个定向 CPU compile jobs，比较终态。
 - 权限核对：两项均是完整 suite 失败点的最小 Slurm 复现，不在登录节点计算，不跳过真实 compile/forces backward。
+- 连接结果：Guqq fast-forward 到 exact `33e9e99775d66a1220ffa35231b86edb7ec147c5`；提交 fresh-cache Job 217 与 fresh-cache+single-thread Job 218。
+
+## 2026-09-01 23:39 +08:00：Jobs 217/218 持久监控
+
+- 用途：新连接先 pull exact 33e9e99，持续只读监控两个诊断 job，离队后读取各自 scontrol/stdout/stderr。
+- 权限核对：只读监控，不修改作业或 cache。
+- 终态：Job 217 `fresh_cache` 为 `FAILED`, `ExitCode=134:0`, runtime 00:01:00，仍在新生成 Inductor forces 双重反向 kernel 中 abort；Job 218 `fresh_cache_single_thread` 为 `COMPLETED`, `ExitCode=0:0`, runtime 00:02:59，fp32/fp64 两项均通过（`2 passed, 85 warnings in 174.60s`）。
+- 决策：将 Job 218 的每-job cache 与单线程环境用于正式完整 unit，不跳过 compile 测试或降低断言。

@@ -20,7 +20,12 @@ ACTUAL_COMMIT="$(git rev-parse HEAD)"
 source /home/xmz/symmetry-expert/.venv/bin/activate
 export MACE_CACHE_DIR=/home/xmz/symmetry-expert/.cache/mace
 export MPLCONFIGDIR=/home/xmz/symmetry-expert/.cache/matplotlib
-mkdir -p "${MACE_CACHE_DIR}" "${MPLCONFIGDIR}"
+export TORCHINDUCTOR_CACHE_DIR="${PROJECT_DIR}/.cache/torchinductor/${SLURM_JOB_ID}"
+export TRITON_CACHE_DIR="${PROJECT_DIR}/.cache/triton/${SLURM_JOB_ID}"
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export TORCHINDUCTOR_COMPILE_THREADS=1
+mkdir -p "${MACE_CACHE_DIR}" "${MPLCONFIGDIR}" "${TORCHINDUCTOR_CACHE_DIR}" "${TRITON_CACHE_DIR}"
 echo "job_id=${SLURM_JOB_ID} host=$(hostname) commit=${ACTUAL_COMMIT}"
 python --version
 CMD=(python -m pytest ELoRA/tests -q)
