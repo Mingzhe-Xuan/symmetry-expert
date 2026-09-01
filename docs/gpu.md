@@ -48,3 +48,11 @@
 - Planned operations: first run `git pull --ff-only` in `/home/xmz/symmetry-expert`; inspect commit/status and transfer progress; use only `rsync`/SSH transport to populate the ignored `.cache/wheelhouse`; submit `setup_readiness.sbatch`, selected unit tests, CPU smoke, and RTX 5090 GPU smoke; inspect scheduler state and logs.
 - Permission check: Git synchronization, SCP-equivalent file transfer, read-only server inspection, and Slurm submission are within `docs/AGENTS.md`. No package installation, testing, computation, direct file editing, or internet download will run on the login node.
 - Status: connected successfully; `git pull --ff-only` reported up to date at `522b348af15a6ed07a18edd46569c04ee6a7f507`, `/usr/bin/rsync` is available, and `compute` is up with `gpu:1`. The known unrelated untracked `net.sh` remains untouched. No wheel transfer or Slurm job was started before the requirements update. Local portable `rsync` 3.5.0 and its `popt` dependency were downloaded from official MSYS2 packages into ignored `.cache` and verified against the published SHA-256 values.
+
+## 2026-09-01: server-side dependency download fallback
+
+- Server: `Guqq`.
+- Purpose: pull the tested requirements/setup commits and submit the environment setup through Slurm, using the newly authorized server internet access only when the transferred wheelhouse is incomplete.
+- Planned operations: `git pull --ff-only` first; submit `setup_readiness.sbatch` with the exact commit; inspect `squeue`, `scontrol`, and job logs. The compute job may download required libraries/packages/wheels from PyPI and the official PyTorch CUDA 12.8 index into `/home/xmz/symmetry-expert/.cache/pip`.
+- Permission check: explicitly allowed by the updated `docs/AGENTS.md`. No dependency download, installation, testing, or computation will run directly on the login node.
+- Status: connection not yet opened for this entry.

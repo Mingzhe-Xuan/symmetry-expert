@@ -19,11 +19,11 @@
 - PyTorch：2.11.0 CUDA 12.8 wheel。
 - e3nn：0.4.4；ASE 3.22.1；完整的直接依赖精确版本以 `docs/requirements.txt` 为唯一清单；`ELoRA/requirements-readiness.txt` 仅作为兼容入口引用该文件。
 - 安装脚本：`ELoRA/scripts/slurm/setup_readiness.sbatch`。
-- 安装源：本地生成并经 SCP 传输的 `/home/xmz/symmetry-expert/.cache/wheelhouse`；Slurm 内使用 `pip --no-index`，安装前执行 `sha256sum --check SHA256SUMS`。
+- 安装源：优先校验并使用 `/home/xmz/symmetry-expert/.cache/wheelhouse`（`pip --no-index`）；若 wheelhouse 或 torch 分片不完整，则根据最新授权在 setup Slurm job 内从 PyPI 与官方 PyTorch CUDA 12.8 index 下载，并复用项目内 `.cache/pip`。登录节点不执行下载或安装。
 - 本地 wheelhouse：50 个 wheel，连同 manifest 共 936,197,999 bytes（892.83 MiB）；`SHA256SUMS` 全部 50 项验证通过。`python-hostlist` 1.23.0 是 Python 3.10 发布但仅有 sdist，已在本地构建为纯 Python universal wheel。
 
 选择理由：RTX 5090 是 compute capability 12.0。PyTorch 2.7 首次加入 Blackwell/CUDA 12.8 支持；2.11 仍提供官方 cu128 wheel。Guqq 驱动 570.211.01 不满足 PyTorch 2.12 默认 CUDA 13.0 所要求的 580.65.06，因此锁定 2.11/cu128。参考：[PyTorch previous versions](https://pytorch.org/get-started/previous-versions/)、[PyTorch 2.7 release](https://pytorch.org/blog/pytorch-2-7/)、[PyTorch 2.12 release](https://pytorch.org/blog/pytorch-2-12-release-blog/)、[NVIDIA CUDA platform](https://docs.nvidia.com/cuda/cuda-programming-guide/01-introduction/cuda-platform.html)。
 
 ## Guqq 验收门控
 
-wheelhouse 已在本地解析和校验，但 Guqq 环境尚未安装验证，状态为 `not_ready`。必须由 setup Slurm job 证明 import、精确版本和 `pip check` 成功；随后 GPU smoke 必须证明设备名、capability 12.0、`sm_120` 架构列表和实际 CUDA kernel 均成功。
+wheelhouse 已在本地解析和校验，但 Guqq 环境尚未安装验证，状态为 `not_ready`。本地传输不完整时允许 setup Slurm job 在线补齐依赖。必须由该 job 证明 import、精确版本和 `pip check` 成功；随后 GPU smoke 必须证明设备名、capability 12.0、`sm_120` 架构列表和实际 CUDA kernel 均成功。

@@ -1,5 +1,11 @@
 # 进度更新
 
+## 2026-09-01：服务器依赖下载授权
+
+- 用户更新 `docs/AGENTS.md`，明确允许服务器联网下载必要 libraries/packages/wheels。
+- setup Slurm job 调整为“完整且哈希通过的 wheelhouse 优先，否则在线下载”，pip cache 固定在仓库忽略的 `.cache/pip`；登录节点仍不下载或安装。
+- 对应提交后测试计划：requirements 目标平台离线解析、SBATCH shell syntax、readiness 回归套件。
+
 ## 2026-09-01：统一环境依赖入口
 
 - 按用户要求新增 `docs/requirements.txt`，固定 Guqq 的 Python 3.10.12 / Linux x86_64 环境直接依赖，并声明官方 PyTorch CUDA 12.8 wheel 索引。

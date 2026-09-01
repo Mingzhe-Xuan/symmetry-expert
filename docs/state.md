@@ -4,6 +4,8 @@
 
 当前阶段：检查点 D（本地实现与验证）收尾；检查点 E（Guqq Slurm 验证）尚未开始。
 
+2026-09-01 检查点 G 下载策略：服务器已获准下载必要依赖。停止本地 rsync 恢复路径；setup Slurm job 保留已校验 wheelhouse 优先级，并在不完整时从 PyPI/PyTorch cu128 index 下载到项目 cache。提交并完成提交后测试后，直接同步 Guqq、提交 setup job。
+
 2026-09-01 检查点 F 环境清单统一：按用户要求将 Guqq 的固定 Python 依赖写入 `docs/requirements.txt`，并把 setup Slurm job 与旧兼容入口统一指向该文件。commit `c906ec5` 后目标平台离线解析、SBATCH 语法和 40 项 readiness 回归均通过；下一步继续 resumable wheelhouse 传输。
 
 2026-09-01 检查点 E 传输调整：单连接上传 820 MB torch wheel 连续中断 3 次。改为本地分片并生成分片哈希，setup Slurm job 在 compute 节点校验、重组，再校验原始 wheelhouse `SHA256SUMS`。提交后测试 `bash -n` 及本地重组哈希等价性。

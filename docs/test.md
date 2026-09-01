@@ -1,5 +1,11 @@
 # Goal 0 测试记录
 
+## 2026-09-01：Slurm 在线依赖 fallback（计划，等待 commit 后执行）
+
+- 目标平台 pip dry-run：确认 `docs/requirements.txt` 仍可由现有完整 wheelhouse 解析。
+- `bash -n ELoRA/scripts/slurm/setup_readiness.sbatch`：覆盖 offline/online 分支 shell syntax。
+- readiness 四文件回归套件：确认环境安装策略调整不影响功能。
+
 ## 2026-09-01：`docs/requirements.txt`（commit `c906ec5` 后验证）
 
 - 目标平台 pip dry-run：使用本地 wheelhouse、CPython 3.10、`manylinux_2_28`/`manylinux_2_17`/`manylinux2014`，成功离线解析 19 个固定直接依赖和全部传递依赖；选择 `torch-2.11.0+cu128`，退出码 0。
