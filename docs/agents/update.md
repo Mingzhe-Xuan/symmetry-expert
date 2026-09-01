@@ -1,0 +1,10 @@
+# 进度更新
+
+## 2026-09-01：采用扩展服务器权限和新记录路径
+
+- 最新规范允许在登录节点执行轻量环境管理、依赖下载、安装和诊断，但明显计算负载仍通过 Slurm。
+- 记录路径迁移到 `docs/agents/`；旧 `docs/*.md` 保留为历史记录，不删除或覆盖。
+- 用户最新明确要求继续使用 Python `venv`，并已手动尝试构建；下一单元先验证现有环境，不预设需要重建。
+- Guqq 环境核验前 GitHub pull 连续 3 次 TLS 超时；已按规则记录经验。远端 refs/tree 与最新已推送 commit 完全一致，后续仅进行只读 venv 核验，不提交新作业。
+- 第 4 次 pull 成功。手动 venv 的固定依赖与 `pip check` 通过，但 torch 为 cu130，驱动不兼容且 CUDA 不可用；canonical requirements 改为清华主索引 + 官方 cu128 extra index，等待 commit 前验证。
+- cu128 索引修复的 commit 前验证完成：双索引静态断言、目标 wheelhouse 解析、SBATCH syntax 均通过，readiness 回归 40 passed。

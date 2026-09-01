@@ -1,7 +1,9 @@
 # Reproducible Guqq readiness environment.
 # Platform: Linux x86_64; Python 3.10.12; NVIDIA driver 570.211.01.
-# Online installs need the official PyTorch CUDA 12.8 wheel index below.
+# Online installs use the Tsinghua PyPI mirror plus the official PyTorch
+# CUDA 12.8 wheel index. Both are required: PyPI torch 2.11 defaults to cu130.
 # The Slurm setup uses --no-index with the locally verified wheelhouse instead.
+--index-url https://pypi.tuna.tsinghua.edu.cn/simple
 --extra-index-url https://download.pytorch.org/whl/cu128
 
 torch==2.11.0
