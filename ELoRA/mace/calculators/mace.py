@@ -15,6 +15,7 @@ from ase.calculators.calculator import Calculator, all_changes
 from ase.stress import full_3x3_to_voigt_6_stress
 
 from mace import data
+from mace.modules.symmetric_contraction import upgrade_legacy_adapter_state
 from mace.modules.utils import extract_invariant
 from mace.tools import torch_geometric, torch_tools, utils
 from mace.tools.compile import prepare
@@ -113,18 +114,22 @@ class MACECalculator(Calculator):
                 self.implemented_properties.extend(["dipole_var"])
         if compile_mode is not None:
             print(f"Torch compile is enabled with mode: {compile_mode}")
-            self.models = [
-                torch.compile(
-                    prepare(extract_load)(f=model_path, map_location=device),
-                    mode=compile_mode,
-                    fullgraph=True,
+            loaded_models = [
+                upgrade_legacy_adapter_state(
+                    prepare(extract_load)(f=model_path, map_location=device)
                 )
                 for model_path in model_paths
+            ]
+            self.models = [
+                torch.compile(model, mode=compile_mode, fullgraph=True)
+                for model in loaded_models
             ]
             self.use_compile = True
         else:
             self.models = [
-                torch.load(f=model_path, map_location=device, weights_only=False)
+                upgrade_legacy_adapter_state(
+                    torch.load(f=model_path, map_location=device, weights_only=False)
+                )
                 for model_path in model_paths
             ]
             self.use_compile = False

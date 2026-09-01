@@ -1,6 +1,6 @@
 # ELoRA 对称专家预实验就绪性报告
 
-readiness: ready
+readiness: not_ready
 
 日期：2026-09-01
 目标：仅完成 Goal 0 工程能力和验证，不运行 Goal 1 正式矩阵。
@@ -15,7 +15,7 @@ readiness: ready
 | B 配置、bank、router | complete locally | readiness 单元测试与真实 MACE 等变性测试 |
 | C 数据统计与 split | complete locally | 合成数据、2000/2001、pre-SG fallback、group leakage 测试 |
 | D checkpoint、统计、smoke | complete locally | checkpoint metadata、merge/unmerge、CPU smoke |
-| E Guqq Slurm | complete | setup 204、unit 205、CPU smoke 206、GPU smoke 207；均 `COMPLETED`, `ExitCode=0:0` |
+| E Guqq Slurm | pending revalidation | setup 204 仍证明环境安装；旧 unit 205 只覆盖选定文件，等待新提交的完整 unit、CPU/GPU smoke |
 
 ## 论文逻辑与实现映射
 
@@ -76,4 +76,11 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 - Guqq GPU smoke Job 207：`COMPLETED`, `ExitCode=0:0`；RTX 5090、CC 12.0、`sm_120_supported=true`、实际 CUDA kernel、forward/backward、checkpoint restore 与 JSON 产物成功。
 - stdout/stderr 与 smoke JSON 已经 SCP 回本地核验；unit/CPU/GPU stderr 均为空。Goal 0 readiness 门控全部完成，未启动 Goal 1。
 
-readiness: ready
+## 完成审计重新打开
+
+- 2026-09-01 逐条复核 Goal 原文后确认：Job 205 的命令只包含 4 个选定测试文件，并非要求的完整 `ELoRA/tests`。
+- 代码审计发现 `mace.tools.train.evaluate()` 会把评估前冻结的参数在评估后统一设为可训练，破坏 scope/update 白名单。
+- 在修复、完整本地测试和同一已推送提交的 Guqq Slurm 完整测试/CPU/GPU smoke 全部通过并回填证据前，旧 Jobs 204–207 只作为历史证据，不能支持完成结论。
+- 本地修复门控已完成：完整 `ELoRA/tests` 为 `67 passed, 14 skipped`；CPU smoke、Python compile、四个 SBATCH syntax 与 `git diff --check` 均退出码 0。readiness 继续保持 `not_ready`，直到新提交的 Guqq 闭环完成。
+
+readiness: not_ready

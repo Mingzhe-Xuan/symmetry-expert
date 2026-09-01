@@ -43,3 +43,10 @@
 - 用途：仅从 Guqq 回传 Jobs 204–207 的 stdout/stderr 与 CPU/GPU smoke JSON 到本地忽略的 `.cache/guqq-readiness-dee1e00/`。
 - 权限核对：SCP 结果回传在本地许可范围；目标是 `.cache`，不会提交生成日志/结果，也不修改服务器文件。
 - 状态：SCP 成功；10 个文件回传到本地 `.cache/guqq-readiness-dee1e00/`。stdout/JSON 内容与 scheduler 结果一致，unit/CPU/GPU stderr 均为 0 字节；最终文档检查完成后按授权删除本地副本，服务器原始日志仍可回传。
+
+## 2026-09-01 20:46 +08:00：完成审计修复的完整 Slurm 复验计划
+
+- 服务器：`Guqq`。
+- 用途：在本地完整套件与 smoke 已通过后，验证即将推送的审计修复 exact commit；重跑完整 `ELoRA/tests`、CPU smoke 与 RTX 5090 GPU smoke，替代旧 Job 205 的选定文件证据。
+- 计划操作：新连接后第一条仓库操作为 `git pull --ff-only`，核对 origin、干净受管工作树和 exact HEAD；只在一致时用版本化 SBATCH 提交 unit/CPU/GPU 作业，立即记录 job IDs，随后只读监控 `squeue`/`scontrol` 与日志。完成后用 SCP 回传 stdout/stderr 和 smoke JSON。
+- 权限核对：git pull、状态检查、Slurm 提交/监控和 SCP 回传均在最新规范与用户自动批准的 git 操作范围；所有 pytest、模型与 CUDA 计算均在 Slurm compute job 内执行，不在登录节点直接运行，不修改服务器受 Git 管理源码。

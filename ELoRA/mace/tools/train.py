@@ -7,7 +7,7 @@
 import dataclasses
 import logging
 import time
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -350,6 +350,20 @@ def take_step(
     return loss, loss_dict
 
 
+@contextmanager
+def _temporarily_disable_parameter_gradients(model: torch.nn.Module):
+    """Disable autograd during evaluation and restore the exact prior policy."""
+    parameters = list(model.parameters())
+    original_requires_grad = [parameter.requires_grad for parameter in parameters]
+    try:
+        for parameter in parameters:
+            parameter.requires_grad_(False)
+        yield
+    finally:
+        for parameter, requires_grad in zip(parameters, original_requires_grad):
+            parameter.requires_grad_(requires_grad)
+
+
 def evaluate(
     model: torch.nn.Module,
     loss_fn: torch.nn.Module,
@@ -357,32 +371,26 @@ def evaluate(
     output_args: Dict[str, bool],
     device: torch.device,
 ) -> Tuple[float, Dict[str, Any]]:
-    for param in model.parameters():
-        param.requires_grad = False
+    with _temporarily_disable_parameter_gradients(model):
+        metrics = MACELoss(loss_fn=loss_fn).to(device)
 
-    metrics = MACELoss(loss_fn=loss_fn).to(device)
+        start_time = time.time()
+        for batch in data_loader:
+            batch = batch.to(device)
+            batch_dict = batch.to_dict()
+            output = model(
+                batch_dict,
+                training=False,
+                compute_force=output_args["forces"],
+                compute_virials=output_args["virials"],
+                compute_stress=output_args["stress"],
+            )
+            avg_loss, aux = metrics(batch, output)
 
-    start_time = time.time()
-    for batch in data_loader:
-        batch = batch.to(device)
-        batch_dict = batch.to_dict()
-        output = model(
-            batch_dict,
-            training=False,
-            compute_force=output_args["forces"],
-            compute_virials=output_args["virials"],
-            compute_stress=output_args["stress"],
-        )
-        avg_loss, aux = metrics(batch, output)
-
-    avg_loss, aux = metrics.compute()
-    aux["time"] = time.time() - start_time
-    metrics.reset()
-
-    for param in model.parameters():
-        param.requires_grad = True
-
-    return avg_loss, aux
+        avg_loss, aux = metrics.compute()
+        aux["time"] = time.time() - start_time
+        metrics.reset()
+        return avg_loss, aux
 
 
 class MACELoss(Metric):

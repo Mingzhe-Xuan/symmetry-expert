@@ -117,8 +117,7 @@ class SymmetricContraction(CodeGenMixin, torch.nn.Module):
     def disable_adapters(self) -> None:
         self.routing_enabled = False
         for contraction in self.contractions:
-            contraction.adapter_kind = "none"
-            contraction.num_experts = 1
+            contraction.disable_adapter()
 
 
 @compile_mode("script")
@@ -190,22 +189,22 @@ class Contraction(torch.nn.Module):
                     / num_params
                 )
                 self.weights_max = w
-                self.adapter_kind = "elora"
-                self.alpha = 16.0
-                self.r = 16
+                # Adapter parameters are created lazily by configure_adapter.
+                # Keeping them absent from the default state_dict preserves strict
+                # compatibility with upstream foundation checkpoints.
+                self.adapter_kind = "none"
+                self.alpha = 1.0
+                self.r = 1
                 self.num_experts = 1
                 self.merged = False
-                # Expert is the leading dimension even for the Shared baseline.  This
-                # makes checkpoint layout deterministic when moving from Shared to K
-                # experts and avoids ever cloning the backbone parameter.
                 self.lora_A_bank = torch.nn.Parameter(
-                    torch.randn(1, num_elements, num_params, self.r) / num_params
+                    self.weights_max.new_empty((0,)), requires_grad=False
                 )
                 self.lora_B_bank = torch.nn.Parameter(
-                    torch.zeros(1, self.r, self.num_features)
+                    self.weights_max.new_empty((0,)), requires_grad=False
                 )
                 self.expert_delta_bank = torch.nn.Parameter(
-                    torch.empty(0), requires_grad=False
+                    self.weights_max.new_empty((0,)), requires_grad=False
                 )
             else:
                 # Generate optimized contractions equations
@@ -263,6 +262,33 @@ class Contraction(torch.nn.Module):
         if not internal_weights:
             self.weights = weights[:-1]
             self.weights_max = weights[-1]
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ) -> None:
+        # Upstream foundation checkpoints predate Goal-0 adapter banks. Empty
+        # disabled banks are structural metadata, so inject only those absent
+        # keys before delegating to PyTorch's strict loader.
+        for name in ("lora_A_bank", "lora_B_bank", "expert_delta_bank"):
+            key = prefix + name
+            if key not in state_dict:
+                state_dict[key] = getattr(self, name)
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
 
     def _adapter_delta(self, expert_idx: int) -> torch.Tensor:
         if self.merged:
@@ -383,6 +409,7 @@ class Contraction(torch.nn.Module):
             and self.r == rank
             and self.alpha == alpha
             and self.num_experts == num_experts
+            and self.lora_A_bank is not None
             and self.lora_A_bank.numel() > 0
         ):
             # The constructor already created this exact zero-delta bank. Keep it
@@ -426,6 +453,21 @@ class Contraction(torch.nn.Module):
                 self.weights_max.new_empty((0,)), requires_grad=False
             )
 
+    def disable_adapter(self) -> None:
+        if self.merged:
+            self.unmerge_adapter()
+        self.adapter_kind = "none"
+        self.num_experts = 1
+        self.lora_A_bank = torch.nn.Parameter(
+            self.weights_max.new_empty((0,)), requires_grad=False
+        )
+        self.lora_B_bank = torch.nn.Parameter(
+            self.weights_max.new_empty((0,)), requires_grad=False
+        )
+        self.expert_delta_bank = torch.nn.Parameter(
+            self.weights_max.new_empty((0,)), requires_grad=False
+        )
+
     def merge_adapter(self) -> None:
         """Merge a single expert reversibly; multi-expert inference stays unmerged."""
         if self.num_experts != 1:
@@ -444,3 +486,33 @@ class Contraction(torch.nn.Module):
     def merge_LoRA(self) -> None:
         """Backward-compatible alias used by the historical save path."""
         self.merge_adapter()
+
+
+def upgrade_legacy_adapter_state(model: torch.nn.Module) -> torch.nn.Module:
+    """Add disabled adapter state to models pickled before Goal-0 adapters."""
+    for module in model.modules():
+        if isinstance(module, SymmetricContraction) and not hasattr(
+            module, "routing_enabled"
+        ):
+            module.routing_enabled = False
+        if not isinstance(module, Contraction):
+            continue
+        if not hasattr(module, "adapter_kind"):
+            module.adapter_kind = "none"
+        if not hasattr(module, "alpha"):
+            module.alpha = 1.0
+        if not hasattr(module, "r"):
+            module.r = 1
+        if not hasattr(module, "num_experts"):
+            module.num_experts = 1
+        if not hasattr(module, "merged"):
+            module.merged = False
+        for name in ("lora_A_bank", "lora_B_bank", "expert_delta_bank"):
+            if name not in module._parameters:
+                module.register_parameter(
+                    name,
+                    torch.nn.Parameter(
+                        module.weights_max.new_empty((0,)), requires_grad=False
+                    ),
+                )
+    return model

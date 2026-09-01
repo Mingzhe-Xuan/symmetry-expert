@@ -23,7 +23,7 @@ export MPLCONFIGDIR=/home/xmz/symmetry-expert/.cache/matplotlib
 mkdir -p "${MACE_CACHE_DIR}" "${MPLCONFIGDIR}"
 echo "job_id=${SLURM_JOB_ID} host=$(hostname) commit=${ACTUAL_COMMIT}"
 python --version
-CMD=(python -m pytest ELoRA/tests/test_elora_readiness.py ELoRA/tests/test_modules.py ELoRA/tests/test_models.py ELoRA/tests/test_data.py -q)
+CMD=(python -m pytest ELoRA/tests -q)
 printf 'command:'; printf ' %q' "${CMD[@]}"; printf '\n'
 srun --ntasks=1 "${CMD[@]}"
 echo "end_time=$(date --iso-8601=seconds) status=success"

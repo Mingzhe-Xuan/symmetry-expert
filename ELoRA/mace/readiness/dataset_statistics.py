@@ -289,23 +289,49 @@ def analyze_dataset(
             retained_subset = [
                 record for record in retained if str(record[level]) == category
             ]
+            split_counts = Counter(
+                str(record["split"]) for record in retained_subset
+            )
+            atoms = _describe([record["num_atoms"] for record in subset])
+            energies = _describe([record["energy_per_atom"] for record in subset])
+            forces = _describe([record["force_norm"] for record in subset])
             class_rows.append(
                 {
                     "category_level": level,
                     "category_id": category,
-                    "crystal_system": str(subset[0]["crystal_system"]),
-                    "point_group": str(subset[0]["point_group"]),
-                    "space_group": str(subset[0]["space_group"]),
+                    "crystal_system": ";".join(
+                        sorted({str(record["crystal_system"]) for record in subset})
+                    ),
+                    "point_group": ";".join(
+                        sorted({str(record["point_group"]) for record in subset})
+                    ),
+                    "space_group": ";".join(
+                        sorted({str(record["space_group"]) for record in subset})
+                    ),
                     "raw_configurations": sum(
                         str(record[level]) == category for record in records
                     ),
                     "unique_structures": len(subset),
+                    "unique_proportion": len(subset) / len(unique),
                     "unique_parents": len({str(record["parent_id"]) for record in subset}),
                     "valid_labels": len(subset),
                     "removed": not bool(retained_subset),
                     "retained_configurations": len(retained_subset),
+                    "retained_proportion": (
+                        len(retained_subset) / len(retained) if retained else 0.0
+                    ),
+                    "train": split_counts["train"],
+                    "valid": split_counts["valid"],
+                    "test": split_counts["test"],
                     "compositions": len({str(record["composition"]) for record in subset}),
                     "prototypes": len({str(record.get("prototype", "")) for record in subset}),
+                    "atoms_median": atoms["median"],
+                    "atoms_q1": atoms["q1"],
+                    "atoms_q3": atoms["q3"],
+                    "energy_per_atom_mean": energies["mean"],
+                    "energy_per_atom_std": energies["std"],
+                    "force_norm_mean": forces["mean"],
+                    "force_norm_std": forces["std"],
                 }
             )
     _write_csv(
@@ -398,6 +424,11 @@ def analyze_dataset(
     elements = Counter(
         int(element) for record in retained for element in record["atomic_numbers"]
     )
+    element_total = sum(elements.values())
+    element_proportions = {
+        key: value / element_total for key, value in sorted(elements.items())
+    }
+    sources = Counter(str(record.get("source", "unknown")) for record in retained)
     cross = Counter(
         (
             str(record["crystal_system"]),
@@ -414,6 +445,12 @@ def analyze_dataset(
         "- Deduplicated structures: {}".format(len(unique)),
         "- Retained structures: {}".format(len(retained)),
         "- Unique parents: {}".format(len({str(item['parent_id']) for item in retained})),
+        "- Unique compositions: {}".format(
+            len({str(item["composition"]) for item in retained})
+        ),
+        "- Unique prototypes: {}".format(
+            len({str(item.get("prototype", "")) for item in retained})
+        ),
         "- Deduplication: `(fingerprint, composition)`, keeping the first record.",
         "- Primary classification: `{}` (decision made before split).".format(primary),
         "- Removed space-group structures: {}".format(removed_sg_structures),
@@ -421,6 +458,8 @@ def analyze_dataset(
         "- Class entropy: {:.6g}".format(metrics["entropy"]),
         "- Effective classes: {:.6g}".format(metrics["effective_classes"]),
         "- Element occurrence counts: `{}`".format(dict(sorted(elements.items()))),
+        "- Element occurrence proportions: `{}`".format(element_proportions),
+        "- Data-source counts: `{}`".format(dict(sorted(sources.items()))),
         "",
         "## Numeric distributions",
         "",

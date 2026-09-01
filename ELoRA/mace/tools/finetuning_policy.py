@@ -133,13 +133,14 @@ def configure_finetuning(
         uses_expert_bank = active and not (
             config.update_mode == "dense" and config.router == "shared"
         )
-        contractions.configure_adapters(
-            config.update_mode if uses_expert_bank else "elora_clean",
-            config.rank,
-            config.alpha,
-            config.num_experts if uses_expert_bank else 1,
-        )
-        if not uses_expert_bank:
+        if uses_expert_bank:
+            contractions.configure_adapters(
+                config.update_mode,
+                config.rank,
+                config.alpha,
+                config.num_experts,
+            )
+        else:
             contractions.disable_adapters()
 
     for parameter in model.parameters():

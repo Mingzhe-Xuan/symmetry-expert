@@ -1,6 +1,7 @@
 import csv
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -9,8 +10,12 @@ import mace  # initializes the narrow e3nn/PyTorch safe-global compatibility
 from e3nn import o3
 
 from mace import data, modules, tools
+from mace.cli.run_train import _prepare_xyz_routing
 from mace.modules.routing import ExpertRouter
-from mace.modules.symmetric_contraction import SymmetricContraction
+from mace.modules.symmetric_contraction import (
+    SymmetricContraction,
+    upgrade_legacy_adapter_state,
+)
 from mace.readiness.dataset_statistics import analyze_dataset, classification_level
 from mace.tools.checkpoint import CheckpointBuilder, CheckpointState
 from mace.tools.finetuning_policy import (
@@ -19,6 +24,7 @@ from mace.tools.finetuning_policy import (
     parameter_statistics,
     readiness_metadata,
 )
+from mace.tools.train import _temporarily_disable_parameter_gradients, evaluate
 
 
 def _contraction(num_experts=2, update_mode="elora_clean"):
@@ -66,6 +72,48 @@ def test_zero_delta_and_mixed_expert_consistency():
             ),
         )
     assert torch.allclose(mixed, expected, atol=1e-6, rtol=1e-6)
+
+
+def test_unconfigured_and_legacy_adapter_state_are_foundation_compatible():
+    module = SymmetricContraction(
+        irreps_in=o3.Irreps("2x0e + 2x1o"),
+        irreps_out=o3.Irreps("2x0e + 2x1o"),
+        correlation=2,
+        num_elements=2,
+    )
+    legacy_state = {
+        name: value
+        for name, value in module.state_dict().items()
+        if "_bank" not in name
+    }
+    clone = SymmetricContraction(
+        irreps_in=o3.Irreps("2x0e + 2x1o"),
+        irreps_out=o3.Irreps("2x0e + 2x1o"),
+        correlation=2,
+        num_elements=2,
+    )
+    clone.load_state_dict(legacy_state, strict=True)
+    x, attrs = _inputs()
+    expected = clone(x, attrs)
+
+    for contraction in clone.contractions:
+        for name in (
+            "adapter_kind",
+            "alpha",
+            "r",
+            "num_experts",
+            "merged",
+            "lora_A_bank",
+            "lora_B_bank",
+            "expert_delta_bank",
+        ):
+            delattr(contraction, name)
+    delattr(clone, "routing_enabled")
+    upgrade_legacy_adapter_state(clone)
+    assert torch.allclose(expected, clone(x, attrs))
+    clone.configure_adapters("elora_clean", rank=2, alpha=2.0, num_experts=2)
+    ids = torch.tensor([0, 1, 0, 1, 1, 0])
+    assert torch.allclose(expected, clone.forward_with_experts(x, attrs, ids))
 
 
 def test_expert_gradient_isolation_and_shared_uniqueness():
@@ -234,6 +282,94 @@ def test_learned_router_top1_and_invariant_input_gradient():
     assert any(parameter.grad is not None for parameter in router.parameters())
 
 
+@pytest.mark.parametrize(
+    ("router_name", "label_field", "expert_map"),
+    [
+        ("crystal_system", "crystal_system", {"cubic": 0, "hexagonal": 1}),
+        ("random_control", "random_control", {"group-a": 0, "group-b": 1}),
+    ],
+)
+def test_frozen_hard_router_is_rigid_transform_and_permutation_invariant(
+    router_name, label_field, expert_map
+):
+    positions = np.array(
+        [[0.0, 0.1, 0.2], [0.8, -0.2, 0.0], [-0.1, 0.7, 0.3]]
+    )
+    rotation = np.array(
+        [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]
+    )
+    permutation = np.array([2, 0, 1])
+    transformed = (
+        positions,
+        positions @ rotation.T + np.array([1.5, -0.5, 2.0]),
+        positions[permutation],
+    )
+    configurations = []
+    for index, current_positions in enumerate(transformed):
+        atomic_numbers = np.array([8, 1, 1])
+        if index == 2:
+            atomic_numbers = atomic_numbers[permutation]
+        item = data.Configuration(
+            atomic_numbers=atomic_numbers,
+            positions=current_positions,
+        )
+        setattr(item, label_field, next(iter(expert_map)))
+        configurations.append(item)
+    collections = SimpleNamespace(train=configurations, valid=[], tests=[])
+    config = FineTuningConfig(
+        router=router_name,
+        num_experts=2,
+        expert_map=expert_map,
+    ).validate()
+    _prepare_xyz_routing(collections, config)
+    label_ids = torch.tensor([item.expert_id for item in configurations])
+    router = ExpertRouter(router_name, num_experts=2)
+    routed_ids, _, _ = router(len(configurations), label_ids=label_ids)
+    assert torch.equal(routed_ids, torch.zeros(3, dtype=torch.long))
+
+
+def test_evaluation_restores_exact_gradient_policy_even_on_error():
+    model = torch.nn.Sequential(
+        torch.nn.Linear(2, 2, bias=False),
+        torch.nn.Linear(2, 1, bias=False),
+    )
+    parameters = list(model.parameters())
+    parameters[0].requires_grad_(False)
+    expected = [parameter.requires_grad for parameter in parameters]
+    with _temporarily_disable_parameter_gradients(model):
+        assert not any(parameter.requires_grad for parameter in parameters)
+    assert [parameter.requires_grad for parameter in parameters] == expected
+
+    class _Batch:
+        def to(self, _device):
+            return self
+
+        @staticmethod
+        def to_dict():
+            return {}
+
+    class _FailingModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.frozen = torch.nn.Parameter(torch.ones(1), requires_grad=False)
+            self.trainable = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+
+        def forward(self, *_args, **_kwargs):
+            raise RuntimeError("intentional evaluation failure")
+
+    failing = _FailingModel()
+    failing_expected = [parameter.requires_grad for parameter in failing.parameters()]
+    with pytest.raises(RuntimeError, match="intentional evaluation failure"):
+        evaluate(
+            failing,
+            loss_fn=torch.nn.Identity(),
+            data_loader=[_Batch()],
+            output_args={"forces": False, "virials": False, "stress": False},
+            device=torch.device("cpu"),
+        )
+    assert [parameter.requires_grad for parameter in failing.parameters()] == failing_expected
+
+
 class _ConfigurableContractions(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -393,6 +529,34 @@ def test_dataset_statistics_outputs_and_group_split(tmp_path):
             assert int(row["train"]) + int(row["valid"]) + int(row["test"]) == int(
                 row["total"]
             )
+    with open(tmp_path / "class_counts.csv", encoding="utf-8") as stream:
+        class_rows = list(csv.DictReader(stream))
+    required_columns = {
+        "unique_proportion",
+        "retained_proportion",
+        "train",
+        "valid",
+        "test",
+        "atoms_median",
+        "atoms_q1",
+        "atoms_q3",
+        "energy_per_atom_mean",
+        "energy_per_atom_std",
+        "force_norm_mean",
+        "force_norm_std",
+    }
+    assert required_columns <= set(class_rows[0])
+    for level in ("crystal_system", "point_group", "space_group"):
+        level_rows = [row for row in class_rows if row["category_level"] == level]
+        assert sum(float(row["unique_proportion"]) for row in level_rows) == pytest.approx(1.0)
+        assert sum(float(row["retained_proportion"]) for row in level_rows) == pytest.approx(1.0)
+        for row in level_rows:
+            assert sum(int(row[split]) for split in ("train", "valid", "test")) == int(
+                row["retained_configurations"]
+            )
+    summary = (tmp_path / "dataset_summary.md").read_text("utf-8")
+    assert "Element occurrence proportions" in summary
+    assert "Data-source counts" in summary
 
 
 def test_classification_gate_boundaries_and_pre_removal_source():

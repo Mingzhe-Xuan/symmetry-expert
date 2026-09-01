@@ -2,20 +2,20 @@
 
 ## 当前状态
 
-- Goal 0 本地实现与 Guqq Slurm 验证均已完成，readiness 为 `ready`。
+- Goal 0 完成审计修复已通过本地完整门控，readiness 仍为 `not_ready`：等待同一已推送提交在 Guqq 通过完整 Slurm unit、CPU smoke 和 RTX 5090 GPU smoke，并回填最终证据。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
 - 用户拥有的 `ELoRA/README.md` 本地修改保持未提交，除非用户另有指示；最新版 `docs/AGENTS.md` 已随实现提交。
 - Guqq 已成功 fast-forward 到最终验证 commit `dee1e009b352d209a476af83623e14f71a492300`。
 - setup Job 204 已完成 Python venv、cu128 固定依赖、editable ELoRA、`pip check` 与 import 门控；环境可用于 Slurm readiness。
-- Jobs 205/206/207 unit、CPU smoke、RTX 5090 GPU smoke 均 `COMPLETED`, `ExitCode=0:0`；Goal 0 全部门控已通过。
+- Jobs 205/206/207 的既有选定 unit、CPU smoke、RTX 5090 GPU smoke 均成功，但不能替代修复后同一提交的完整 Slurm 回归。
 
 ## 当前计划
 
-1. 最终 readiness 文档、Jobs 204–207 证据与环境版本已回填。
-2. 最终纯文档变更的路径、格式、JSON/日志一致性检查已通过。
-3. 本任务产生的本地临时 cache 已清理约 1.64 GiB；来源不明的既有 `.cache/uv` 保留，远端日志仍可恢复。
-4. 提交并推送最终 Goal 0 readiness 证据；不自动启动 Goal 1。
+1. 提交并推送已通过本地门控的审计修复，保持用户 `ELoRA/README.md` 改动不进入提交。
+2. 在 Guqq 新连接先 pull 并核对 exact HEAD，再通过 Slurm 重跑完整 unit、CPU/GPU smoke。
+3. 回传并核验 job 日志、JSON、脚本哈希、资源、环境、终态和退出码；回填 readiness 报告。
+4. 运行最终文档检查、提交推送、清理任务临时文件并确认工作树只剩用户改动；不启动 Goal 1。
 
 ## 变更记录
 
@@ -29,3 +29,6 @@
 - 2026-09-01 17:13 +08:00：setup Job 204 全绿，环境门控完成；进入 unit/CPU/GPU Slurm 验证阶段。
 - 2026-09-01 17:16 +08:00：Jobs 205/206/207 全绿，证据已 SCP 并核验；Goal 0 readiness 改为 `ready`，进入最终文档与临时文件清理。
 - 2026-09-01 17:23 +08:00：最终文档与回传证据一致性检查通过；清理本任务临时文件约 1.64 GiB，仅保留来源不明的 `.cache/uv`。
+- 2026-09-01 17:37 +08:00：逐条完成审计推翻先前完成判断；发现服务器未跑完整测试套件及 `evaluate()` 破坏梯度白名单，readiness 恢复为 `not_ready`，进入修复和完整闭环。
+- 2026-09-01 17:49 +08:00：完整本地套件暴露 Windows `PYTHONPATH` 分隔符和旧 foundation pickle/state-dict 的 adapter 向后兼容缺口；增加对应测试单元后继续修复，不缩小测试范围。
+- 2026-09-01 20:46 +08:00：兼容性与完成审计修复通过完整本地套件（67 passed、14 skipped）、CPU smoke、compile、SBATCH syntax 和 diff 检查；下一步提交推送并在 Guqq 对 exact commit 执行完整 Slurm 闭环。

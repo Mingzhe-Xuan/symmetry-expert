@@ -12,3 +12,10 @@
 - Job 203：固定依赖阶段已安装 torch `2.11.0+cu128` / CUDA 12.8；editable ELoRA build isolation 失败，故该 venv 尚未完成最终 `pip check`/import 验证。
 - Job 204：Python venv 完整重建成功；torch `2.11.0+cu128` / CUDA 12.8、全部固定版本 import、editable MACE/ELoRA 与 `pip check` 均通过。环境安装门控完成。
 - Jobs 205–207：同一 venv 的 unit、CPU smoke、RTX 5090 GPU smoke 全部成功；GPU 证明 CC 12.0、sm_120 与实际 CUDA kernel。
+
+## 2026-09-01 本地审计环境
+
+- 路径：`.cache/local-readiness-venv`，由 `python -m venv --system-site-packages` 创建，仅用于 Windows 本地回归，验证后删除。
+- Python 3.12.7；torch 2.11.0+cpu；e3nn 0.4.4；ASE 3.22.1；NumPy 1.26.4；SciPy 1.15.3；h5py 3.14.0。
+- 新增代码没有引入新依赖；Guqq 的 canonical 依赖仍完整固定在 `docs/requirements.txt`，无需改动该清单。
+- 本地 venv 继承宿主 `site-packages`，因此 `pip check` 会报告 fairchem/manim/torchaudio 等与 Goal 0 无关的宿主包冲突；该环境只支持本地测试通过的证据，不作为可复现安装门控。正式安装门控是 Python 创建的 Guqq `.venv`，Job 204 已在隔离环境中证明 canonical requirements、editable ELoRA、imports 与 `pip check` 全部通过。

@@ -64,3 +64,27 @@
 - JSON 字段断言：CPU device/checkpoint restore 通过；GPU RTX 5090、CC 12.0、sm_120、torch CUDA 12.8、实际 kernel 与 checkpoint restore 全部通过。
 - unit/CPU/GPU stderr 长度均为 0 字节。
 - 上述检查通过后按授权删除本地回传副本；服务器原始日志与 smoke JSON 保留，可再次回传。
+
+## 2026-09-01：Goal 0 完成审计修复（计划）
+
+- 梯度白名单：构造同时含冻结/可训练参数的模型，验证 `evaluate()` 正常返回和异常退出后均精确恢复原始 `requires_grad` 状态。
+- 数据统计：验证 `class_counts.csv` 对每个分类层级提供逐类比例、split 计数及 atoms/energy/force 数值摘要；同层比例和为 1，split 计数与 retained 数据一致。
+- router：对旋转、平移和原子置换后的同一构型使用冻结 symmetry/random 标签，验证 expert id 不变；learned router 仍只接受不变量特征。
+- Slurm unit 脚本：静态断言命令为完整 `python -m pytest ELoRA/tests -q`，而非选定文件子集；`bash -n` 必须通过。
+- 本地提交前门控：新增针对性测试、完整 `ELoRA/tests`、CPU smoke、SBATCH syntax、`git diff --check` 全部退出码 0。
+- Guqq 集成门控：同一已推送提交上通过完整 unit Slurm、CPU smoke 和 RTX 5090 GPU smoke；记录 job ID、脚本 SHA-256、资源、环境、stdout/stderr/JSON 路径、终态与退出码。
+- 完整套件新增发现的兼容单元：未配置 adapter 的新模型须能 strict-load 旧 foundation state dict；旧 pickle 中缺少 adapter 属性的 contraction 经加载升级后保持原输出，并能随后配置 adapter。
+- 完整套件跨平台入口：测试子进程的 `PYTHONPATH` 使用 `os.pathsep`；Windows 与 Guqq/Linux 均能导入当前 checkout，不跳过原断言。
+- foundation training 的 2023 upstream 精确能量向量来自全参数旧策略，与本分支显式 `elora_paper` 白名单不符；改为同时断言模型内 readiness policy metadata 和有限、非退化预测。参数所有权、梯度与确定性由专门 Goal-0 测试继续强制，不用无关旧向量作为 oracle。
+- TorchScript 兼容：未配置 adapter 使用零长度非训练 Parameter 保持静态 Tensor 类型；旧 state dict 缺失这些新 key 时由窄加载钩子补齐，strict-load、JIT compile 与新 adapter 配置均须通过。
+
+### commit 前实际结果
+
+- 本地临时环境：Python 3.12.7，torch 2.11.0+cpu，e3nn 0.4.4，ASE 3.22.1，NumPy 1.26.4，SciPy 1.15.3，h5py 3.14.0；源码通过 `PYTHONPATH=ELoRA` 使用当前 checkout。
+- 定向 foundation CLI 回归：`.cache/local-readiness-venv/Scripts/python.exe -m pytest ELoRA/tests/test_run_train.py::test_run_train_foundation -q`，`1 passed, 25 warnings`，退出码 0。
+- 完整本地套件：`.cache/local-readiness-venv/Scripts/python.exe -m pytest ELoRA/tests -q --basetemp=.cache/pytest-goal0-full-local-final -o cache_dir=.cache/pytest-goal0-full-local-final-cache`，`67 passed, 14 skipped, 976 warnings in 426.07s`，退出码 0；未排除任何测试文件。
+- CPU smoke：`PYTHONPATH=ELoRA .cache/local-readiness-venv/Scripts/python.exe ELoRA/scripts/readiness_smoke.py --device cpu --output .cache/goal0-local-cpu-smoke.json`，退出码 0；`checkpoint_restore=true`、loss 有限、输出 shape `[8,16]`。
+- Python 静态编译：`python -m compileall -q ELoRA/mace ELoRA/scripts ELoRA/tests`，退出码 0。
+- 四个实际 SBATCH 文件的 `bash -n`：通过，退出码 0；静态核对 unit 命令为完整 `python -m pytest ELoRA/tests -q`。
+- `git diff --check`：通过，退出码 0（仅 Git 的 LF/CRLF 工作区提示）。
+- 两次 foundation 定向复测曾因调用点补丁误落在同文件的相邻测试而失败；最终逐一核对四处 helper 调用，只有 foundation 显式关闭孤立原子零能量断言，完整套件随后通过。
