@@ -17,13 +17,13 @@ from typing import Optional
 import numpy as np
 import torch.distributed
 import torch.nn.functional
+import mace
 from e3nn import o3
 from e3nn.util import jit
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim.swa_utils import SWALR, AveragedModel
 from torch_ema import ExponentialMovingAverage
 
-import mace
 from mace import data, modules, tools
 from mace.calculators.foundations_models import mace_mp, mace_off
 from mace.tools import torch_geometric
@@ -41,6 +41,53 @@ from mace.tools.scripts_utils import (
 )
 from mace.tools.slurm_distributed import DistributedEnvironment
 from mace.tools.utils import AtomicNumberTable
+
+
+def _prepare_xyz_routing(collections, config: tools.FineTuningConfig) -> None:
+    label_field = {
+        "crystal_system": "crystal_system",
+        "point_group": "point_group",
+        "space_group": "space_group",
+        "random_control": "random_control",
+    }.get(config.router)
+    for subset in [collections.train, collections.valid] + [
+        configs for _, configs in collections.tests
+    ]:
+        for item in subset:
+            if config.router == "shared":
+                item.expert_id = 0
+            elif config.router == "learned":
+                if item.router_features is None:
+                    raise ValueError(
+                        "learned routing requires invariant router_features in every configuration"
+                    )
+            else:
+                label = getattr(item, label_field)
+                if label is None or str(label) not in config.expert_map:
+                    raise ValueError(
+                        "missing category {!r} in frozen expert_map".format(label)
+                    )
+                item.expert_id = config.expert_map[str(label)]
+
+    if config.train_size is not None:
+        if config.split_manifest is None:
+            raise ValueError("train_size requires split_manifest with a frozen train_order")
+        with open(config.split_manifest, "r", encoding="utf-8") as stream:
+            manifest = json.load(stream)
+        train_order = manifest.get("train_order")
+        if not isinstance(train_order, list):
+            raise ValueError("split_manifest must contain a train_order list")
+        selected_ids = set(str(value) for value in train_order[: config.train_size])
+        if len(selected_ids) != config.train_size:
+            raise ValueError("train_order is shorter than requested train_size")
+        selected = [
+            item
+            for item in collections.train
+            if item.structure_id is not None and item.structure_id in selected_ids
+        ]
+        if len(selected) != config.train_size:
+            raise ValueError("train_size ids do not exactly match the loaded training data")
+        collections.train[:] = selected
 
 
 def main() -> None:
@@ -89,6 +136,19 @@ def run(args: argparse.Namespace) -> None:
     tools.set_default_dtype(args.default_dtype)
     device = tools.init_device(args.device)
     commit = print_git_commit()
+    expert_map = tools.load_expert_map(args.expert_map)
+    finetuning_config = tools.FineTuningConfig(
+        update_mode=args.update_mode,
+        scope=args.scope,
+        router=args.router,
+        rank=args.elora_rank,
+        alpha=args.elora_alpha,
+        num_experts=args.num_experts,
+        expert_map=expert_map,
+        train_size=args.train_size,
+        seed=args.seed,
+        split_manifest=args.split_manifest,
+    ).validate()
     if args.foundation_model is not None:
         if args.foundation_model in ["small", "medium", "large"]:
             logging.info(
@@ -112,7 +172,9 @@ def run(args: argparse.Namespace) -> None:
             )
             model_foundation = calc.models[0]
         else:
-            model_foundation = torch.load(args.foundation_model, map_location=device)
+            model_foundation = torch.load(
+                args.foundation_model, map_location=device, weights_only=False
+            )
             logging.info(
                 f"Using foundation model {args.foundation_model} as initial checkpoint."
             )
@@ -159,8 +221,13 @@ def run(args: argparse.Namespace) -> None:
             f"Total number of configurations: train={len(collections.train)}, valid={len(collections.valid)}, "
             f"tests=[{', '.join([name + ': ' + str(len(test_configs)) for name, test_configs in collections.tests])}]"
         )
+        _prepare_xyz_routing(collections, finetuning_config)
     else:
         atomic_energies_dict = None
+        if args.router != "shared" or args.train_size is not None:
+            raise ValueError(
+                "non-shared routing and train_size currently require metadata-bearing XYZ input"
+            )
 
     # Atomic number table
     # yapf: disable
@@ -521,11 +588,29 @@ def run(args: argparse.Namespace) -> None:
             load_readout=True,
             max_L=args.max_L,
         )
+    if args.router == "learned":
+        invariant_dim = int(train_set[0].router_features.numel())
+        if invariant_dim <= 0:
+            raise ValueError("learned router requires non-empty invariant features")
+        model.expert_router = modules.ExpertRouter(
+            "learned", args.num_experts, invariant_dim=invariant_dim
+        )
+        model.router_balance_weight = args.router_balance_weight
     model.to(device)
-    param_size = 0
-    for name, param in model.named_parameters():
-        if "LoRA" in name or "radial_embedding" in name or ("symmetric_contractions" in name and "weights_max" not in name):
-            param_size += param.numel()
+    trainable_manifest = tools.configure_finetuning(model, finetuning_config)
+    metadata = tools.readiness_metadata(finetuning_config, code_version=commit)
+    metadata["trainable_manifest"] = trainable_manifest
+    model.readiness_metadata = metadata
+    manifest_path = args.trainable_manifest or str(
+        Path(args.results_dir) / (tag + "_trainable_parameters.json")
+    )
+    tools.write_json(manifest_path, trainable_manifest)
+    tools.write_json(
+        str(Path(args.results_dir) / (tag + "_finetuning_config.json")), metadata
+    )
+    param_size = sum(
+        parameter.numel() for parameter in model.parameters() if parameter.requires_grad
+    )
     logging.info(f"Number of trainable parameters: {param_size}")
     # Optimizer
     decay_interactions = {}
@@ -536,34 +621,40 @@ def run(args: argparse.Namespace) -> None:
         else:
             no_decay_interactions[name] = param
 
+    decay_names = set("interactions." + name for name in decay_interactions)
+    decay_names.update(
+        name
+        for name, parameter in model.named_parameters()
+        if name.startswith("products.") and parameter.requires_grad
+    )
+    decay_parameters = []
+    no_decay_parameters = []
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        if name in decay_names:
+            decay_parameters.append(parameter)
+        else:
+            no_decay_parameters.append(parameter)
+    parameter_groups = []
+    if decay_parameters:
+        parameter_groups.append(
+            {
+                "name": "trainable_decay",
+                "params": decay_parameters,
+                "weight_decay": args.weight_decay,
+            }
+        )
+    if no_decay_parameters:
+        parameter_groups.append(
+            {
+                "name": "trainable_no_decay",
+                "params": no_decay_parameters,
+                "weight_decay": 0.0,
+            }
+        )
     param_options = dict(
-        params=[
-            {
-                "name": "embedding",
-                "params": model.node_embedding.parameters(),
-                "weight_decay": 0.0,
-            },
-            {
-                "name": "interactions_decay",
-                "params": list(decay_interactions.values()),
-                "weight_decay": args.weight_decay,
-            },
-            {
-                "name": "interactions_no_decay",
-                "params": list(no_decay_interactions.values()),
-                "weight_decay": 0.0,
-            },
-            {
-                "name": "products",
-                "params": model.products.parameters(),
-                "weight_decay": args.weight_decay,
-            },
-            {
-                "name": "readouts",
-                "params": model.readouts.parameters(),
-                "weight_decay": 0.0,
-            },
-        ],
+        params=parameter_groups,
         lr=args.lr,
         amsgrad=args.amsgrad,
         betas=(args.beta, 0.999),
@@ -830,11 +921,19 @@ def run(args: argparse.Namespace) -> None:
             }
             if swa_eval:
                 torch.save(model, Path(args.model_dir) / (args.name + "_swa.model"))
-                model_copy = deepcopy(model)
-                for name, module in model_copy.named_modules():
-                    if hasattr(module, "merge_LoRA"):
-                        module.merge_LoRA()
-                torch.save(model_copy, Path(args.model_dir) / (args.name + "_swa_merge.model"))
+                if args.num_experts == 1:
+                    model_copy = deepcopy(model)
+                    for _, module in model_copy.named_modules():
+                        if hasattr(module, "merge_LoRA"):
+                            module.merge_LoRA()
+                    torch.save(
+                        model_copy,
+                        Path(args.model_dir) / (args.name + "_swa_merge.model"),
+                    )
+                else:
+                    logging.info(
+                        "Multi-expert checkpoint remains unmerged; inference selects deltas by router."
+                    )
                 try:
                     path_complied = Path(args.model_dir) / (
                         args.name + "_swa_compiled.model"
@@ -850,11 +949,18 @@ def run(args: argparse.Namespace) -> None:
                     pass
             else:
                 torch.save(model, Path(args.model_dir) / (args.name + ".model"))
-                model_copy = deepcopy(model)
-                for name, module in model_copy.named_modules():
-                    if hasattr(module, "merge_LoRA"):
-                        module.merge_LoRA()
-                torch.save(model_copy, Path(args.model_dir) / (args.name + "_merge.model"))
+                if args.num_experts == 1:
+                    model_copy = deepcopy(model)
+                    for _, module in model_copy.named_modules():
+                        if hasattr(module, "merge_LoRA"):
+                            module.merge_LoRA()
+                    torch.save(
+                        model_copy, Path(args.model_dir) / (args.name + "_merge.model")
+                    )
+                else:
+                    logging.info(
+                        "Multi-expert checkpoint remains unmerged; inference selects deltas by router."
+                    )
                 try:
                     path_complied = Path(args.model_dir) / (
                         args.name + "_compiled.model"

@@ -1,5 +1,13 @@
 # 服务器连接记录
 
+## 2026-09-01：Goal 0 Slurm 闭环（计划连接）
+
+- 服务器：`Guqq`
+- 用途：在本地最终测试、commit/push 和 wheelhouse 哈希完成后，同步固定 commit，并仅通过 Slurm 创建 `/home/xmz/symmetry-expert/.venv`、运行 selected unit、CPU smoke 和 RTX 5090 GPU smoke。
+- 计划操作：先只读核对 origin/branch/clean status、`git pull --ff-only`、commit、`sinfo`/partition/node/GRES；通过 SCP 把本地离线 wheelhouse 放入仓库 `.cache/`；提交四个版本化 sbatch，轮询 `squeue`/`scontrol` 并回传日志和 JSON。
+- 限制：不在登录节点安装、测试、计算或编辑；不使用 `sacct`；不下载正式数据或模型；不进入 Goal 1。
+- 状态：尚未连接，等待本地门控与推送完成。
+
 ## 2026-09-01 02:19 +08:00
 
 - 服务器：`Guqq`

@@ -225,6 +225,22 @@ class MACE(torch.nn.Module):
             pair_node_energy = torch.zeros_like(node_e0)
             pair_energy = torch.zeros_like(e0)
 
+        # Expand graph-level routing once; every product block reuses the same
+        # expert ids and the same shared backbone parameters.
+        node_expert_ids = torch.jit.annotate(Optional[torch.Tensor], None)
+        node_expert_weights = torch.jit.annotate(Optional[torch.Tensor], None)
+        router_logits = torch.jit.annotate(Optional[torch.Tensor], None)
+        if hasattr(self, "expert_router"):
+            _, router_logits, graph_expert_weights = self.expert_router(
+                num_graphs, invariant_features=data.get("router_features")
+            )
+            node_expert_weights = graph_expert_weights.index_select(0, data["batch"])
+        elif "expert_id" in data:
+            graph_expert_ids = data["expert_id"].reshape(-1).to(dtype=torch.long)
+            if graph_expert_ids.numel() != num_graphs:
+                raise ValueError("expert_id must contain one id per graph")
+            node_expert_ids = graph_expert_ids.index_select(0, data["batch"])
+
         # Interactions
         energies = [e0, pair_energy]
         node_energies_list = [node_e0, pair_node_energy]
@@ -243,6 +259,8 @@ class MACE(torch.nn.Module):
                 node_feats=node_feats,
                 sc=sc,
                 node_attrs=data["node_attrs"],
+                expert_ids=node_expert_ids,
+                expert_weights=node_expert_weights,
             )
             node_feats_list.append(node_feats)
             node_energies = readout(node_feats).squeeze(-1)  # [n_nodes, ]
@@ -282,6 +300,7 @@ class MACE(torch.nn.Module):
             "stress": stress,
             "displacement": displacement,
             "node_feats": node_feats_out,
+            "router_logits": router_logits,
         }
 
 
@@ -353,6 +372,19 @@ class ScaleShiftMACE(MACE):
             )
         else:
             pair_node_energy = torch.zeros_like(node_e0)
+        node_expert_ids = torch.jit.annotate(Optional[torch.Tensor], None)
+        node_expert_weights = torch.jit.annotate(Optional[torch.Tensor], None)
+        router_logits = torch.jit.annotate(Optional[torch.Tensor], None)
+        if hasattr(self, "expert_router"):
+            _, router_logits, graph_expert_weights = self.expert_router(
+                num_graphs, invariant_features=data.get("router_features")
+            )
+            node_expert_weights = graph_expert_weights.index_select(0, data["batch"])
+        elif "expert_id" in data:
+            graph_expert_ids = data["expert_id"].reshape(-1).to(dtype=torch.long)
+            if graph_expert_ids.numel() != num_graphs:
+                raise ValueError("expert_id must contain one id per graph")
+            node_expert_ids = graph_expert_ids.index_select(0, data["batch"])
         # Interactions
         node_es_list = [pair_node_energy]
         node_feats_list = []
@@ -367,7 +399,11 @@ class ScaleShiftMACE(MACE):
                 edge_index=data["edge_index"],
             )
             node_feats = product(
-                node_feats=node_feats, sc=sc, node_attrs=data["node_attrs"]
+                node_feats=node_feats,
+                sc=sc,
+                node_attrs=data["node_attrs"],
+                expert_ids=node_expert_ids,
+                expert_weights=node_expert_weights,
             )
             node_feats_list.append(node_feats)
             node_es_list.append(readout(node_feats).squeeze(-1))  # {[n_nodes, ], }
@@ -407,6 +443,7 @@ class ScaleShiftMACE(MACE):
             "stress": stress,
             "displacement": displacement,
             "node_feats": node_feats_out,
+            "router_logits": router_logits,
         }
 
         return output
@@ -763,6 +800,20 @@ class AtomicDipolesMACE(torch.nn.Module):
             lengths, data["node_attrs"], data["edge_index"], self.atomic_numbers
         )
 
+        node_expert_ids = torch.jit.annotate(Optional[torch.Tensor], None)
+        node_expert_weights = torch.jit.annotate(Optional[torch.Tensor], None)
+        router_logits = torch.jit.annotate(Optional[torch.Tensor], None)
+        if hasattr(self, "expert_router"):
+            _, router_logits, graph_expert_weights = self.expert_router(
+                num_graphs, invariant_features=data.get("router_features")
+            )
+            node_expert_weights = graph_expert_weights.index_select(0, data["batch"])
+        elif "expert_id" in data:
+            graph_expert_ids = data["expert_id"].reshape(-1).to(dtype=torch.long)
+            if graph_expert_ids.numel() != num_graphs:
+                raise ValueError("expert_id must contain one id per graph")
+            node_expert_ids = graph_expert_ids.index_select(0, data["batch"])
+
         # Interactions
         dipoles = []
         for interaction, product, readout in zip(
@@ -779,6 +830,8 @@ class AtomicDipolesMACE(torch.nn.Module):
                 node_feats=node_feats,
                 sc=sc,
                 node_attrs=data["node_attrs"],
+                expert_ids=node_expert_ids,
+                expert_weights=node_expert_weights,
             )
             node_dipoles = readout(node_feats).squeeze(-1)  # [n_nodes,3]
             dipoles.append(node_dipoles)
@@ -805,6 +858,7 @@ class AtomicDipolesMACE(torch.nn.Module):
         output = {
             "dipole": total_dipole,
             "atomic_dipoles": atomic_dipoles,
+            "router_logits": router_logits,
         }
         return output
 
@@ -982,6 +1036,20 @@ class EnergyDipolesMACE(torch.nn.Module):
             lengths, data["node_attrs"], data["edge_index"], self.atomic_numbers
         )
 
+        node_expert_ids = torch.jit.annotate(Optional[torch.Tensor], None)
+        node_expert_weights = torch.jit.annotate(Optional[torch.Tensor], None)
+        router_logits = torch.jit.annotate(Optional[torch.Tensor], None)
+        if hasattr(self, "expert_router"):
+            _, router_logits, graph_expert_weights = self.expert_router(
+                num_graphs, invariant_features=data.get("router_features")
+            )
+            node_expert_weights = graph_expert_weights.index_select(0, data["batch"])
+        elif "expert_id" in data:
+            graph_expert_ids = data["expert_id"].reshape(-1).to(dtype=torch.long)
+            if graph_expert_ids.numel() != num_graphs:
+                raise ValueError("expert_id must contain one id per graph")
+            node_expert_ids = graph_expert_ids.index_select(0, data["batch"])
+
         # Interactions
         energies = [e0]
         node_energies_list = [node_e0]
@@ -1000,6 +1068,8 @@ class EnergyDipolesMACE(torch.nn.Module):
                 node_feats=node_feats,
                 sc=sc,
                 node_attrs=data["node_attrs"],
+                expert_ids=node_expert_ids,
+                expert_weights=node_expert_weights,
             )
             node_out = readout(node_feats).squeeze(-1)  # [n_nodes, ]
             # node_energies = readout(node_feats).squeeze(-1)  # [n_nodes, ]
@@ -1055,5 +1125,6 @@ class EnergyDipolesMACE(torch.nn.Module):
             "displacement": displacement,
             "dipole": total_dipole,
             "atomic_dipoles": atomic_dipoles,
+            "router_logits": router_logits,
         }
         return output

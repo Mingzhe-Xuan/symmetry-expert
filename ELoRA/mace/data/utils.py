@@ -47,6 +47,14 @@ class Configuration:
     stress_weight: float = 1.0  # weight of config stress in loss
     virials_weight: float = 1.0  # weight of config virial in loss
     config_type: Optional[str] = DEFAULT_CONFIG_TYPE  # config_type of config
+    structure_id: Optional[str] = None
+    parent_id: Optional[str] = None
+    crystal_system: Optional[str] = None
+    point_group: Optional[str] = None
+    space_group: Optional[str] = None
+    random_control: Optional[str] = None
+    expert_id: Optional[int] = None
+    router_features: Optional[np.ndarray] = None
 
 
 Configurations = List[Configuration]
@@ -135,6 +143,14 @@ def config_from_atoms(
     forces_weight = atoms.info.get("config_forces_weight", 1.0)
     stress_weight = atoms.info.get("config_stress_weight", 1.0)
     virials_weight = atoms.info.get("config_virials_weight", 1.0)
+    structure_id = atoms.info.get("structure_id")
+    parent_id = atoms.info.get("parent_id")
+    crystal_system = atoms.info.get("crystal_system")
+    point_group = atoms.info.get("point_group")
+    space_group = atoms.info.get("space_group")
+    random_control = atoms.info.get("random_control")
+    expert_id = atoms.info.get("expert_id")
+    router_features = atoms.info.get("router_features")
 
     # fill in missing quantities but set their weight to 0.0
     if energy is None:
@@ -170,6 +186,16 @@ def config_from_atoms(
         config_type=config_type,
         pbc=pbc,
         cell=cell,
+        structure_id=None if structure_id is None else str(structure_id),
+        parent_id=None if parent_id is None else str(parent_id),
+        crystal_system=None if crystal_system is None else str(crystal_system),
+        point_group=None if point_group is None else str(point_group),
+        space_group=None if space_group is None else str(space_group),
+        random_control=None if random_control is None else str(random_control),
+        expert_id=None if expert_id is None else int(expert_id),
+        router_features=(
+            None if router_features is None else np.asarray(router_features, dtype=float)
+        ),
     )
 
 

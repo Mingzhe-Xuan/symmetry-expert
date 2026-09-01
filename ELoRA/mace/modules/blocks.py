@@ -222,8 +222,19 @@ class EquivariantProductBasisBlock(torch.nn.Module):
         node_feats: torch.Tensor,
         sc: Optional[torch.Tensor],
         node_attrs: torch.Tensor,
+        expert_ids: Optional[torch.Tensor] = None,
+        expert_weights: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        node_feats = self.symmetric_contractions(node_feats, node_attrs)
+        if expert_weights is not None:
+            node_feats = self.symmetric_contractions.forward_with_expert_weights(
+                node_feats, node_attrs, expert_weights
+            )
+        elif expert_ids is None:
+            node_feats = self.symmetric_contractions(node_feats, node_attrs)
+        else:
+            node_feats = self.symmetric_contractions.forward_with_experts(
+                node_feats, node_attrs, expert_ids
+            )
         if self.use_sc and sc is not None:
             return self.linear(node_feats) + sc
         return self.linear(node_feats)

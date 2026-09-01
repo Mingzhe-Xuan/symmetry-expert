@@ -66,6 +66,7 @@ class SymmetricContraction(CodeGenMixin, torch.nn.Module):
         del internal_weights, shared_weights
 
         self.contractions = torch.nn.ModuleList()
+        self.routing_enabled = True
         for irrep_out in self.irreps_out:
             self.contractions.append(
                 Contraction(
@@ -79,8 +80,45 @@ class SymmetricContraction(CodeGenMixin, torch.nn.Module):
             )
 
     def forward(self, x: torch.Tensor, y: torch.Tensor):
-        outs = [contraction(x, y) for contraction in self.contractions]
+        outs = [contraction(x, y, None) for contraction in self.contractions]
         return torch.cat(outs, dim=-1)
+
+    def forward_with_experts(
+        self, x: torch.Tensor, y: torch.Tensor, expert_ids: torch.Tensor
+    ) -> torch.Tensor:
+        """Apply graph-level expert deltas after ids have been expanded to nodes."""
+        if not self.routing_enabled:
+            return self.forward(x, y)
+        outs = [contraction(x, y, expert_ids) for contraction in self.contractions]
+        return torch.cat(outs, dim=-1)
+
+    def forward_with_expert_weights(
+        self, x: torch.Tensor, y: torch.Tensor, expert_weights: torch.Tensor
+    ) -> torch.Tensor:
+        if not self.routing_enabled:
+            return self.forward(x, y)
+        outs = [
+            contraction.forward_weighted(x, y, expert_weights)
+            for contraction in self.contractions
+        ]
+        return torch.cat(outs, dim=-1)
+
+    def configure_adapters(
+        self,
+        update_mode: str,
+        rank: int,
+        alpha: float,
+        num_experts: int,
+    ) -> None:
+        self.routing_enabled = True
+        for contraction in self.contractions:
+            contraction.configure_adapter(update_mode, rank, alpha, num_experts)
+
+    def disable_adapters(self) -> None:
+        self.routing_enabled = False
+        for contraction in self.contractions:
+            contraction.adapter_kind = "none"
+            contraction.num_experts = 1
 
 
 @compile_mode("script")
@@ -151,14 +189,24 @@ class Contraction(torch.nn.Module):
                     torch.randn((num_elements, num_params, self.num_features))
                     / num_params
                 )
-                # LoRA weights initialization
-                self.LoRA_weight = []
-                self.alpha = 16
-                self.r = 16
-                self.LoRA_weight.append(torch.nn.Parameter(torch.randn(num_elements, num_params, self.r) / num_params))
-                self.LoRA_weight.append(torch.nn.Parameter(torch.zeros(self.r, self.num_features)))
-                self.LoRA_weight = torch.nn.ParameterList(self.LoRA_weight)
                 self.weights_max = w
+                self.adapter_kind = "elora"
+                self.alpha = 16.0
+                self.r = 16
+                self.num_experts = 1
+                self.merged = False
+                # Expert is the leading dimension even for the Shared baseline.  This
+                # makes checkpoint layout deterministic when moving from Shared to K
+                # experts and avoids ever cloning the backbone parameter.
+                self.lora_A_bank = torch.nn.Parameter(
+                    torch.randn(1, num_elements, num_params, self.r) / num_params
+                )
+                self.lora_B_bank = torch.nn.Parameter(
+                    torch.zeros(1, self.r, self.num_features)
+                )
+                self.expert_delta_bank = torch.nn.Parameter(
+                    torch.empty(0), requires_grad=False
+                )
             else:
                 # Generate optimized contractions equations
                 parse_subscript_weighting = (
@@ -216,13 +264,59 @@ class Contraction(torch.nn.Module):
             self.weights = weights[:-1]
             self.weights_max = weights[-1]
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor):
-        out = self.graph_opt_main(
-            self.U_tensors(self.correlation),
-            self.weights_max + self.alpha / self.r * self.LoRA_weight[0] @ self.LoRA_weight[1],
-            x,
-            y,
-        )
+    def _adapter_delta(self, expert_idx: int) -> torch.Tensor:
+        if self.merged:
+            return torch.zeros_like(self.weights_max)
+        if self.adapter_kind == "elora":
+            return (
+                self.alpha
+                / float(self.r)
+                * torch.matmul(
+                    self.lora_A_bank[expert_idx], self.lora_B_bank[expert_idx]
+                )
+            )
+        if self.adapter_kind == "dense":
+            return self.expert_delta_bank[expert_idx]
+        return torch.zeros_like(self.weights_max)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        expert_ids: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        if expert_ids is None:
+            out = self.graph_opt_main(
+                self.U_tensors(self.correlation),
+                self.weights_max + self._adapter_delta(0),
+                x,
+                y,
+            )
+        else:
+            if expert_ids.ndim != 1 or expert_ids.shape[0] != x.shape[0]:
+                raise ValueError("expert_ids must contain one id per input row")
+            if expert_ids.dtype != torch.long:
+                expert_ids = expert_ids.to(dtype=torch.long)
+            if bool(torch.any(expert_ids < 0)) or bool(
+                torch.any(expert_ids >= self.num_experts)
+            ):
+                raise ValueError("expert id is outside the configured expert bank")
+            out = self.graph_opt_main(
+                self.U_tensors(self.correlation), self.weights_max, x, y
+            )
+            # The shared contraction runs once. Only each active delta branch is
+            # grouped, then scattered back into the original node order.
+            for expert_idx in range(self.num_experts):
+                indices = torch.nonzero(expert_ids == expert_idx).flatten()
+                if indices.numel() == 0:
+                    continue
+                expert_out = self.graph_opt_main(
+                    self.U_tensors(self.correlation),
+                    self._adapter_delta(expert_idx),
+                    x.index_select(0, indices),
+                    y.index_select(0, indices),
+                )
+                out.index_add_(0, indices, expert_out)
         for i, (weight, contract_weights, contract_features) in enumerate(
             zip(self.weights, self.contractions_weighting, self.contractions_features)
         ):
@@ -236,11 +330,117 @@ class Contraction(torch.nn.Module):
 
         return out.view(out.shape[0], -1)
 
+    def forward_weighted(
+        self, x: torch.Tensor, y: torch.Tensor, expert_weights: torch.Tensor
+    ) -> torch.Tensor:
+        if expert_weights.shape != (x.shape[0], self.num_experts):
+            raise ValueError("expert_weights must have shape [rows, num_experts]")
+        out = self.graph_opt_main(
+            self.U_tensors(self.correlation), self.weights_max, x, y
+        )
+        for expert_idx in range(self.num_experts):
+            delta_out = self.graph_opt_main(
+                self.U_tensors(self.correlation),
+                self._adapter_delta(expert_idx),
+                x,
+                y,
+            )
+            row_weights = expert_weights[:, expert_idx]
+            while row_weights.ndim < delta_out.ndim:
+                row_weights = row_weights.unsqueeze(-1)
+            out = out + delta_out * row_weights
+        for i, (weight, contract_weights, contract_features) in enumerate(
+            zip(self.weights, self.contractions_weighting, self.contractions_features)
+        ):
+            c_tensor = contract_weights(
+                self.U_tensors(self.correlation - i - 1), weight, y
+            )
+            c_tensor = c_tensor + out
+            out = contract_features(c_tensor, x)
+        return out.view(out.shape[0], -1)
+
     def U_tensors(self, nu: int):
         return dict(self.named_buffers())[f"U_matrix_{nu}"]
-    
-    def merge_LoRA(self):
-        self.weights_max.data = self.weights_max + self.alpha / self.r * self.LoRA_weight[0] @ self.LoRA_weight[1]
-        del self.LoRA_weight
-        del self.alpha
-        del self.r
+
+    def configure_adapter(
+        self, update_mode: str, rank: int, alpha: float, num_experts: int
+    ) -> None:
+        """Configure a fresh expert bank without replacing the shared weight."""
+        if update_mode not in ("dense", "elora_clean", "elora_paper"):
+            raise ValueError("unsupported update_mode: " + update_mode)
+        if rank <= 0:
+            raise ValueError("rank must be positive")
+        if alpha <= 0:
+            raise ValueError("alpha must be positive")
+        if num_experts <= 0:
+            raise ValueError("num_experts must be positive")
+        if self.merged:
+            self.unmerge_adapter()
+
+        if (
+            update_mode in ("elora_clean", "elora_paper")
+            and self.adapter_kind == "elora"
+            and self.r == rank
+            and self.alpha == alpha
+            and self.num_experts == num_experts
+            and self.lora_A_bank.numel() > 0
+        ):
+            # The constructor already created this exact zero-delta bank. Keep it
+            # to preserve initialization/RNG compatibility with historical runs.
+            return
+
+        self.r = int(rank)
+        self.alpha = float(alpha)
+        self.num_experts = int(num_experts)
+        num_elements, num_params, num_features = self.weights_max.shape
+        if update_mode == "dense":
+            self.adapter_kind = "dense"
+            self.expert_delta_bank = torch.nn.Parameter(
+                self.weights_max.new_zeros(
+                    (num_experts, num_elements, num_params, num_features)
+                )
+            )
+            self.lora_A_bank = torch.nn.Parameter(
+                self.weights_max.new_empty((0,)), requires_grad=False
+            )
+            self.lora_B_bank = torch.nn.Parameter(
+                self.weights_max.new_empty((0,)), requires_grad=False
+            )
+        else:
+            self.adapter_kind = "elora"
+            self.lora_A_bank = torch.nn.Parameter(
+                torch.randn(
+                    num_experts,
+                    num_elements,
+                    num_params,
+                    rank,
+                    dtype=self.weights_max.dtype,
+                    device=self.weights_max.device,
+                )
+                / num_params
+            )
+            self.lora_B_bank = torch.nn.Parameter(
+                self.weights_max.new_zeros((num_experts, rank, num_features))
+            )
+            self.expert_delta_bank = torch.nn.Parameter(
+                self.weights_max.new_empty((0,)), requires_grad=False
+            )
+
+    def merge_adapter(self) -> None:
+        """Merge a single expert reversibly; multi-expert inference stays unmerged."""
+        if self.num_experts != 1:
+            raise RuntimeError("cannot merge a multi-expert parameter bank")
+        if not self.merged:
+            with torch.no_grad():
+                self.weights_max.add_(self._adapter_delta(0))
+            self.merged = True
+
+    def unmerge_adapter(self) -> None:
+        if self.merged:
+            self.merged = False
+            with torch.no_grad():
+                self.weights_max.sub_(self._adapter_delta(0))
+
+    def merge_LoRA(self) -> None:
+        """Backward-compatible alias used by the historical save path."""
+        self.merge_adapter()

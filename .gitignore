@@ -1,0 +1,16 @@
+.cache/
+cache/
+ELoRA/.venv/
+ELoRA/.pytest_cache/
+ELoRA/**/__pycache__/
+ELoRA/**/*.pyc
+ELoRA/slurm-*.out
+ELoRA/slurm-*.err
+slurm-*.out
+slurm-*.err
+ELoRA/artifacts/readiness/
+ELoRA/logs/
+ELoRA/results/
+ELoRA/checkpoints/
+ELoRA/*.model
+ELoRAtest.h5

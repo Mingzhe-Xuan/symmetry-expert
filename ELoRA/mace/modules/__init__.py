@@ -40,6 +40,7 @@ from .models import (
     ScaleShiftMACE,
 )
 from .radial import BesselBasis, GaussianBasis, PolynomialCutoff, ZBLBasis
+from .routing import ExpertRouter, encode_expert_labels
 from .symmetric_contraction import SymmetricContraction
 from .utils import (
     compute_avg_num_neighbors,
@@ -107,4 +108,6 @@ __all__ = [
     "compute_avg_num_neighbors",
     "compute_statistics",
     "compute_fixed_charge_dipole",
+    "ExpertRouter",
+    "encode_expert_labels",
 ]

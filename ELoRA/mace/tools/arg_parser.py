@@ -165,6 +165,64 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         "--correlation", help="correlation order at each layer", type=int, default=3
     )
     parser.add_argument(
+        "--update_mode",
+        choices=["dense", "elora_clean", "elora_paper"],
+        default="elora_paper",
+        help="fine-tuning parameterization",
+    )
+    parser.add_argument(
+        "--scope",
+        choices=["readout", "tail_1", "no_first", "full"],
+        default="full",
+        help="explicit trainable model scope",
+    )
+    parser.add_argument(
+        "--router",
+        choices=[
+            "shared",
+            "crystal_system",
+            "point_group",
+            "space_group",
+            "learned",
+            "random_control",
+        ],
+        default="shared",
+        help="configuration-level expert router",
+    )
+    parser.add_argument("--elora_rank", type=int, default=16)
+    parser.add_argument("--elora_alpha", type=float, default=16.0)
+    parser.add_argument("--num_experts", type=int, default=1)
+    parser.add_argument(
+        "--router_balance_weight",
+        type=float,
+        default=0.01,
+        help="learned-router load-balancing loss weight",
+    )
+    parser.add_argument(
+        "--expert_map",
+        type=str,
+        default=None,
+        help="frozen category-to-contiguous-id JSON mapping",
+    )
+    parser.add_argument(
+        "--split_manifest",
+        type=str,
+        default=None,
+        help="frozen data split manifest recorded in checkpoints",
+    )
+    parser.add_argument(
+        "--train_size",
+        type=int,
+        default=None,
+        help="declared nested training-set size; selection is defined by split_manifest",
+    )
+    parser.add_argument(
+        "--trainable_manifest",
+        type=str,
+        default=None,
+        help="path for the JSON trainable-parameter manifest",
+    )
+    parser.add_argument(
         "--num_interactions", help="number of interactions", type=int, default=2
     )
     parser.add_argument(

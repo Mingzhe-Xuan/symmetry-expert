@@ -1,5 +1,13 @@
 # 进度更新
 
+## 2026-09-01：Goal 0 ELoRA 对称专家本地实现
+
+- 完成可配置 update/scope/router/rank/alpha/K、共享 backbone 上的专家 delta bank、mixed-expert forward/backward 和 learned top-1 router。
+- 将逐 batch 字符串式 `requires_grad` 改为 optimizer 构造前一次性白名单，并增加参数 manifest、统计和 checkpoint readiness metadata。
+- 完成强制数据统计、严格分类门控、parent group split、固定 train order/hash 和图表产物。
+- 新增 Goal 0 单元测试、真实 MACE energy/force 等变性测试、CPU/GPU smoke 和四个 Guqq Slurm 脚本。
+- 当前尚未 commit/push 或执行 Guqq Slurm；`readiness` 保持 `not_ready`。
+
 ## 2026-09-01：扩展 Introduction 的课题边界
 
 - 将总体动机从单一原子势扩展为等变材料模型的结构域参数高效适配。

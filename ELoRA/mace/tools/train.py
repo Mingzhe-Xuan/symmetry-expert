@@ -315,11 +315,6 @@ def take_step(
     max_grad_norm: Optional[float],
     device: torch.device,
 ) -> Tuple[float, Dict[str, Any]]:
-    for name, param in model.named_parameters():
-        if "LoRA" in name or "radial_embedding" in name or ("symmetric_contractions" in name and "weights_max" not in name):
-            param.requires_grad = True
-        else:
-            param.requires_grad = False
     start_time = time.time()
     batch = batch.to(device)
     optimizer.zero_grad(set_to_none=True)
@@ -332,6 +327,13 @@ def take_step(
         compute_stress=output_args["stress"],
     )
     loss = loss_fn(pred=output, ref=batch)
+    if output.get("router_logits") is not None:
+        logits = output["router_logits"]
+        probabilities = torch.softmax(logits, dim=-1)
+        mean_probability = probabilities.mean(dim=0)
+        target = torch.full_like(mean_probability, 1.0 / mean_probability.numel())
+        balance_loss = torch.mean((mean_probability - target) ** 2)
+        loss = loss + float(getattr(model, "router_balance_weight", 0.01)) * balance_loss
     loss.backward()
     if max_grad_norm is not None:
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm)

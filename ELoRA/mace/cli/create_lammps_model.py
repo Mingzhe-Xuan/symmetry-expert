@@ -10,7 +10,7 @@ def main():
     assert len(sys.argv) == 2, f"Usage: {sys.argv[0]} model_path"
 
     model_path = sys.argv[1]  # takes model name as command-line input
-    model = torch.load(model_path)
+    model = torch.load(model_path, weights_only=False)
     model = model.double().to("cpu")
     lammps_model = LAMMPS_MACE(model)
     lammps_model_compiled = jit.compile(lammps_model)

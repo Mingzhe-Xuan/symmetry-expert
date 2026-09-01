@@ -8,13 +8,13 @@ import dataclasses
 import logging
 import os
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
 from .torch_tools import TensorDict
 
-Checkpoint = Dict[str, TensorDict]
+Checkpoint = Dict[str, Any]
 
 
 @dataclasses.dataclass
@@ -31,15 +31,26 @@ class CheckpointBuilder:
             "model": state.model.state_dict(),
             "optimizer": state.optimizer.state_dict(),
             "lr_scheduler": state.lr_scheduler.state_dict(),
+            "readiness_metadata": getattr(state.model, "readiness_metadata", {}),
         }
 
     @staticmethod
     def load_checkpoint(
         state: CheckpointState, checkpoint: Checkpoint, strict: bool
     ) -> None:
+        saved_metadata = checkpoint.get("readiness_metadata", {})
+        expected_metadata = getattr(state.model, "readiness_metadata", {})
+        if (
+            saved_metadata
+            and expected_metadata
+            and saved_metadata.get("config") != expected_metadata.get("config")
+        ):
+            raise ValueError("checkpoint fine-tuning configuration does not match")
         state.model.load_state_dict(checkpoint["model"], strict=strict)  # type: ignore
         state.optimizer.load_state_dict(checkpoint["optimizer"])
         state.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        if saved_metadata:
+            state.model.readiness_metadata = saved_metadata
 
 
 @dataclasses.dataclass

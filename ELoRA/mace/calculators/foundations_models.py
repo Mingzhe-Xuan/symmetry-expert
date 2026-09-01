@@ -71,7 +71,9 @@ def mace_mp(
                 if model in (None, "small", "medium", "large")
                 else model
             )
-            cache_dir = os.path.expanduser("~/.cache/mace")
+            cache_dir = os.environ.get(
+                "MACE_CACHE_DIR", os.path.expanduser("~/.cache/mace")
+            )
             checkpoint_url_name = "".join(
                 c for c in os.path.basename(checkpoint_url) if c.isalnum() or c in "_"
             )
@@ -169,7 +171,9 @@ def mace_off(
             if model in (None, "small", "medium", "large")
             else model
         )
-        cache_dir = os.path.expanduser("~/.cache/mace")
+        cache_dir = os.environ.get(
+            "MACE_CACHE_DIR", os.path.expanduser("~/.cache/mace")
+        )
         checkpoint_url_name = os.path.basename(checkpoint_url).split("?")[0]
         cached_model_path = f"{cache_dir}/{checkpoint_url_name}"
         if not os.path.isfile(cached_model_path):
@@ -193,7 +197,7 @@ def mace_off(
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
     if return_raw_model:
-        return torch.load(model, map_location=device)
+        return torch.load(model, map_location=device, weights_only=False)
 
     if default_dtype == "float64":
         print(

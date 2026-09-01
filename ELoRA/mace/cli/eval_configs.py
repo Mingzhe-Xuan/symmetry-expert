@@ -67,7 +67,7 @@ def run(args: argparse.Namespace) -> None:
     device = torch_tools.init_device(args.device)
 
     # Load model
-    model = torch.load(f=args.model, map_location=args.device)
+    model = torch.load(f=args.model, map_location=args.device, weights_only=False)
     model = model.to(
         args.device
     )  # shouldn't be necessary but seems to help with CUDA problems

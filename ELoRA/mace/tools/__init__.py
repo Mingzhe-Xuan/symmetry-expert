@@ -2,6 +2,15 @@ from .arg_parser import build_default_arg_parser, build_preprocess_arg_parser
 from .cg import U_matrix_real
 from .checkpoint import CheckpointHandler, CheckpointIO, CheckpointState
 from .finetuning_utils import load_foundations
+from .finetuning_policy import (
+    FineTuningConfig,
+    build_parameter_manifest,
+    configure_finetuning,
+    load_expert_map,
+    parameter_statistics,
+    readiness_metadata,
+    write_json,
+)
 from .torch_tools import (
     TensorDict,
     cartesian_to_spherical,
@@ -67,4 +76,11 @@ __all__ = [
     "init_wandb",
     "load_foundations",
     "build_preprocess_arg_parser",
+    "FineTuningConfig",
+    "build_parameter_manifest",
+    "configure_finetuning",
+    "load_expert_map",
+    "parameter_statistics",
+    "readiness_metadata",
+    "write_json",
 ]
