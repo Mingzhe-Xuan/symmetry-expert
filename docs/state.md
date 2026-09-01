@@ -12,7 +12,7 @@
 - [x] 实现训练参数清单、checkpoint 元数据与显式 merge/unmerge 策略。
 - [x] 实现强制数据统计、分类门控、group split 和 manifest 工具。
 - [x] 补齐 Goal 0 最低测试清单、CPU smoke 和 GPU smoke/Slurm 脚本。
-- [ ] 运行并记录本地测试，提交并推送同一验证 commit。
+- [x] 运行并记录 commit 后本地测试，提交并推送验证 commit。
 - [ ] 在 Guqq 上只通过 Slurm 完成环境、服务器测试和 RTX 5090 GPU smoke，回传并记录证据。
 - [ ] 逐项审计验收材料；全部通过后才把 `docs/preexperiment_readiness.md` 标记为 `readiness: ready`。
 

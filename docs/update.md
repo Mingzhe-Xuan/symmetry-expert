@@ -9,6 +9,12 @@
 - 新增 Goal 0 单元测试、真实 MACE energy/force 等变性测试、CPU/GPU smoke 和四个 Guqq Slurm 脚本。
 - 实现已 commit；文档证据 follow-up 与 push、Guqq Slurm 尚待完成，`readiness` 保持 `not_ready`。
 
+## 2026-09-01：Goal 0 commit 后验证与推送
+
+- `f42866353c7a778bd2f10963f90aa2159a0687e1` 与证据 commit `601f45cd040ba713e6212f4f8d1443b76cd40542` 已推送到 `origin/main`。
+- 按更新后的开发规范，在 commit 后运行对应本地测试：43 passed；CPU smoke 成功。
+- 下一阶段为固定最终推送 commit 的 Guqq wheelhouse SCP 与四个 Slurm jobs。
+
 ## 2026-09-01：扩展 Introduction 的课题边界
 
 - 将总体动机从单一原子势扩展为等变材料模型的结构域参数高效适配。

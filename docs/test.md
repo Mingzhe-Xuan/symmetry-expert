@@ -32,3 +32,11 @@
 | unit | `ELoRA/scripts/slurm/unit_readiness.sbatch` | pending | pending | pending |
 | CPU smoke | `ELoRA/scripts/slurm/cpu_smoke.sbatch` | pending | pending | pending |
 | GPU smoke | `ELoRA/scripts/slurm/gpu_smoke.sbatch` | pending | pending | pending |
+
+## 2026-09-01 post-commit 验证
+
+- 已推送 commit：`601f45cd040ba713e6212f4f8d1443b76cd40542`。
+- 命令：selected readiness/modules/models/data suite 与三个 training CLI cases 合并运行。
+- 结果：43 passed，432 warnings，92.32 s，退出码 0。
+- 随后运行 CPU smoke：checkpoint restore true，loss 1.110556960105896，output `[8,16]`，退出码 0。
+- 该顺序遵循更新后的 `docs/AGENTS.md`：先 commit，再执行并记录对应单元测试。

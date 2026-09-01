@@ -68,7 +68,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 ## 未解决门控
 
 - 最终本地门控已通过：selected 40 passed、training CLI 3 passed、CPU smoke/compile/shell/diff checks 全部退出码 0。
-- 实现已 commit，证据文档 follow-up 与 push 尚待完成。
+- 实现与证据 commit 已推送；`601f45c` 的 post-commit 本地门控为 43 passed，CPU smoke 成功。
 - 50-wheel offline wheelhouse 已生成并通过 SHA-256 全量校验，尚未 SCP。
 - Guqq setup、unit、CPU/GPU smoke 尚未通过，job ID、`scontrol`、stdout/stderr 和产物尚未回填。
 
