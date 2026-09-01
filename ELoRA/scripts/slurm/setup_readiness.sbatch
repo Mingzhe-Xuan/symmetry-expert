@@ -27,6 +27,8 @@ echo "job_id=${SLURM_JOB_ID} host=$(hostname) commit=${ACTUAL_COMMIT}"
 echo "start_time=$(date --iso-8601=seconds)"
 TORCH_PARTS="${WHEELHOUSE}/torch.parts"
 TORCH_WHEEL="${WHEELHOUSE}/torch-2.11.0+cu128-cp310-cp310-manylinux_2_28_x86_64.whl"
+BENCHMARK_WHEEL="${WHEELHOUSE}/pytest_benchmark-5.2.3-py3-none-any.whl"
+CPUINFO_WHEEL="${WHEELHOUSE}/py_cpuinfo-9.0.0-py3-none-any.whl"
 if [[ -f "${TORCH_PARTS}/SHA256SUMS" ]] && (cd "${TORCH_PARTS}" && sha256sum --check SHA256SUMS); then
     echo "torch_parts=verified; reconstructing wheel"
     cat "${TORCH_PARTS}"/part-* > "${TORCH_WHEEL}.tmp"
@@ -36,7 +38,14 @@ elif [[ -d "${TORCH_PARTS}" ]]; then
 fi
 
 USE_OFFLINE=0
-if [[ -f "${WHEELHOUSE}/SHA256SUMS" ]] && (cd "${WHEELHOUSE}" && sha256sum --check SHA256SUMS); then
+EXTRA_WHEELS_OK=0
+if [[ -f "${BENCHMARK_WHEEL}" && -f "${CPUINFO_WHEEL}" ]] \
+    && printf '%s  %s\n' bc839726ad20e99aaa0d11a127445457b4219bdb9e80a1afc4b51da7f96b0803 "${BENCHMARK_WHEEL}" | sha256sum --check --status \
+    && printf '%s  %s\n' 859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5 "${CPUINFO_WHEEL}" | sha256sum --check --status; then
+    EXTRA_WHEELS_OK=1
+fi
+if [[ "${EXTRA_WHEELS_OK}" == "1" && -f "${WHEELHOUSE}/SHA256SUMS" ]] \
+    && (cd "${WHEELHOUSE}" && sha256sum --check SHA256SUMS); then
     USE_OFFLINE=1
     echo "dependency_source=verified_offline_wheelhouse"
 else
@@ -57,7 +66,9 @@ fi
 "${VENV_DIR}/bin/python" -m pip install --no-index --no-deps --no-build-isolation -e ELoRA
 "${VENV_DIR}/bin/python" -m pip check
 "${VENV_DIR}/bin/python" - <<'PY'
-import ase, e3nn, h5py, matplotlib, numpy, pandas, scipy, torch
+from importlib.metadata import version
+
+import ase, cpuinfo, e3nn, h5py, matplotlib, numpy, pandas, pytest_benchmark, scipy, torch
 print("python_environment=ok")
 print("torch=", torch.__version__)
 print("torch_cuda=", torch.version.cuda)
@@ -68,5 +79,7 @@ print("scipy=", scipy.__version__)
 print("h5py=", h5py.__version__)
 print("matplotlib=", matplotlib.__version__)
 print("pandas=", pandas.__version__)
+print("pytest_benchmark=", version("pytest-benchmark"))
+print("py_cpuinfo=", version("py-cpuinfo"))
 PY
 echo "end_time=$(date --iso-8601=seconds) status=success"

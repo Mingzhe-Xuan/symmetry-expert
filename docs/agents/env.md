@@ -19,3 +19,9 @@
 - Python 3.12.7；torch 2.11.0+cpu；e3nn 0.4.4；ASE 3.22.1；NumPy 1.26.4；SciPy 1.15.3；h5py 3.14.0。
 - 新增代码没有引入新依赖；Guqq 的 canonical 依赖仍完整固定在 `docs/requirements.txt`，无需改动该清单。
 - 本地 venv 继承宿主 `site-packages`，因此 `pip check` 会报告 fairchem/manim/torchaudio 等与 Goal 0 无关的宿主包冲突；该环境只支持本地测试通过的证据，不作为可复现安装门控。正式安装门控是 Python 创建的 Guqq `.venv`，Job 204 已在隔离环境中证明 canonical requirements、editable ELoRA、imports 与 `pip check` 全部通过。
+
+## 2026-09-02 benchmark 插件增量
+
+- Job 219 证明仓库完整 suite 需要 `pytest-benchmark` 提供 `benchmark` fixture；canonical `docs/requirements.txt` 新增 `pytest-benchmark==5.2.3` 与其固定传递依赖 `py-cpuinfo==9.0.0`。
+- 离线 wheel：`pytest_benchmark-5.2.3-py3-none-any.whl`，45,255 字节，SHA-256 `bc839726ad20e99aaa0d11a127445457b4219bdb9e80a1afc4b51da7f96b0803`；`py_cpuinfo-9.0.0-py3-none-any.whl`，22,335 字节，SHA-256 `859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5`。
+- setup offline gate 会单独校验这两个新增 wheel；Guqq Python venv 重建与 `pip check` 尚待 exact commit 的 setup Slurm 验收。

@@ -178,3 +178,26 @@
 - 五个 SBATCH 的 `bash -n` 全部通过，退出码 0。
 - unit 静态断言确认每-job Inductor/Triton cache、三个单线程变量、60 分钟时限及唯一完整 pytest 命令全部存在，退出码 0。
 - `git diff --check` 通过；readiness marker 为两个 `not_ready`、零个 `ready`，退出码 0。
+
+### Guqq 完整 suite 结果
+
+- Job 219：`FAILED`, `ExitCode=1:0`, runtime 00:08:26；单线程/独立 cache 已消除 Job 216/217 的原生崩溃。
+- pytest：`1 failed, 71 passed, 1 skipped, 1122 warnings, 8 errors in 498.72s`。
+- 8 errors：CUDA benchmark 用例均在 setup 阶段缺少 `benchmark` fixture，canonical venv 未安装 `pytest-benchmark`。
+- 1 failure：`test_graph_breaks` 报 2 个 graph breaks，均明确来自 PyTorch 2.11 的 `trace_autograd_ops=False` 拒绝追踪 `torch.autograd.grad`。
+
+## 2026-09-02：完整 suite 环境与 autograd tracing 修复（计划）
+
+- 环境单元：在 `docs/requirements.txt` 固定 `pytest-benchmark==5.2.3`；下载 Python 3.10 通用 wheel 及缺失传递依赖，记录 size/SHA-256，并让 setup 的 offline gate 只有在这些 wheel 通过精确 hash 校验时才启用。
+- 编译单元：采用 MACE upstream 当前 `configure_autograd_for_compile()` 语义；`allow_autograd=True` 时除 `allow_in_graph` 外，对支持该配置的 PyTorch 显式设置 `dynamo.config.trace_autograd_ops=True`。增加不依赖 CUDA 的回归，先强制 false，再断言 `prepare()` 恢复 true。
+- 本地门控：新回归、完整 `ELoRA/tests`、requirements/plugin 解析与 import/version、全部 SBATCH `bash -n`、setup offline hash gate 静态断言、`git diff --check`、readiness marker。
+- Guqq 门控：由 Python 创建的既有 `.venv` 通过版本化 setup job 重新验收，必须包含 `pytest-benchmark 5.2.3`、`pip check` 与 torch cu128；随后 exact commit 重跑完整 unit。不得跳过 benchmark、graph-break 或真实 compile 测试。
+
+### commit 前实际结果
+
+- wheel 获取：`pytest_benchmark-5.2.3-py3-none-any.whl` 为 45,255 字节、SHA-256 `bc839726…b0803`；`py_cpuinfo-9.0.0-py3-none-any.whl` 为 22,335 字节、SHA-256 `859625bc…74d5`。二者均为 Python 3 通用 wheel。
+- 本地安装/import：Python 创建的审计 venv 从上述离线目录安装成功；metadata 精确报告 `pytest-benchmark=5.2.3`、`py-cpuinfo=9.0.0`。
+- autograd 定向回归：`test_prepare_enables_autograd_tracing` 为 `1 passed`，退出码 0。
+- 首次完整调用未传仓库 `MACE_CACHE_DIR`，collection 在尝试访问受限用户缓存时中止；使用此前相同的仓库 `.cache/mace` 变量重跑，不修改测试范围。
+- 完整本地套件：`68 passed, 14 skipped, 976 warnings in 364.93s`，退出码 0；新增 1 项为 autograd tracing 回归，Windows compile/CUDA 仍按 upstream 标记跳过。
+- 五个 SBATCH `bash -n`、requirements pins、offline wheel 文件名/SHA gate 与插件 import/version 静态检查全部通过，退出码 0。

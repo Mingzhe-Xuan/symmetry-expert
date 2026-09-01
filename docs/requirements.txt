@@ -25,3 +25,5 @@ tqdm==4.67.1
 matplotlib==3.10.7
 pandas==2.3.3
 pytest==8.4.2
+pytest-benchmark==5.2.3
+py-cpuinfo==9.0.0

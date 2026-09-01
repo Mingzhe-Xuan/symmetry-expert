@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- Goal 0 本地完整门控及 Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：Job 218 已证明每-job compiler cache + 单线程环境下真实 CPU compile 双 dtype 测试稳定；正在把该配置应用到完整 unit Slurm 并重跑全套测试。
+- Goal 0 本地完整门控及 Guqq CPU/GPU smoke 已通过，readiness 仍为 `not_ready`：Job 219 已消除 compiler crash，但完整 suite 暴露缺失 benchmark plugin 与 PyTorch 2.11 autograd tracing 配置；进入环境和 upstream-compatible 编译修复。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
 - 用户拥有的 `ELoRA/README.md` 本地修改保持未提交，除非用户另有指示；最新版 `docs/AGENTS.md` 已随实现提交。
@@ -41,3 +41,4 @@
 - 2026-09-01 23:25 +08:00：MACE-MP large 与三个 MACE-OFF cache 通过断点 SFTP、size/hash/zip 校验及原子启用；服务器完整 suite 已具备离线 foundation 输入，准备重投。
 - 2026-09-01 23:36 +08:00：Job 216 在 `test_compile.py::test_mace` 的 CPU Inductor forces backward 中 segfault；预注册 fresh per-job cache 与单线程两个真实 compile 诊断，不降低测试语义。
 - 2026-09-01 23:42 +08:00：Job 217 独立缓存仍 abort；Job 218 独立缓存加单线程完整通过 fp32/fp64 真实 compile。采用已验证 profile 更新正式 unit，下一步 commit 前检查、提交推送并重跑完整 suite。
+- 2026-09-02 00:03 +08:00：Job 219 不再原生崩溃，运行完整 suite 后明确暴露 `pytest-benchmark` 缺失与 PyTorch 2.11 autograd trace 配置两个缺口；预注册环境、编译回归和完整重跑门控。

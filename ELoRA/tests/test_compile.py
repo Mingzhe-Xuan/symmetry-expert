@@ -88,6 +88,17 @@ def default_dtype(request):
         yield torch.get_default_dtype()
 
 
+def test_prepare_enables_autograd_tracing(monkeypatch):
+    import torch._dynamo as dynamo
+
+    if not hasattr(dynamo.config, "trace_autograd_ops"):
+        pytest.skip(reason="PyTorch does not expose trace_autograd_ops")
+
+    monkeypatch.setattr(dynamo.config, "trace_autograd_ops", False)
+    mace_compile.prepare(torch.nn.Identity)
+    assert dynamo.config.trace_autograd_ops is True
+
+
 # skip if on windows
 @pytest.mark.skipif(os.name == "nt", reason="Not supported on Windows")
 @pytest.mark.parametrize("device", ["cpu", "cuda"])

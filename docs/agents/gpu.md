@@ -404,3 +404,41 @@
 - 权限核对：只读监控，不修改作业或 cache。
 - 终态：Job 217 `fresh_cache` 为 `FAILED`, `ExitCode=134:0`, runtime 00:01:00，仍在新生成 Inductor forces 双重反向 kernel 中 abort；Job 218 `fresh_cache_single_thread` 为 `COMPLETED`, `ExitCode=0:0`, runtime 00:02:59，fp32/fp64 两项均通过（`2 passed, 85 warnings in 174.60s`）。
 - 决策：将 Job 218 的每-job cache 与单线程环境用于正式完整 unit，不跳过 compile 测试或降低断言。
+
+## 2026-09-01 23:47 +08:00：稳定配置完整 unit 提交与持久监控
+
+- 用途：新连接首先 `git pull` 到 exact `9b42742`，核对受管工作树后提交版本化 `unit_readiness.sbatch`；同一连接只读监控至终态并读取 scheduler/stdout/stderr。
+- 权限核对：计算仅由 Slurm 执行；登录节点只做 pull、exact commit 核对、提交与监控。测试仍为完整 `ELoRA/tests -q`，不修改服务器源码、环境或正式 cache。
+- 连接结果：GitHub TLS 在 pull 阶段异常终止，链式门控未提交作业；后续空 job id 的只读终态命令误显示当前另一项目 Job 215，未修改该作业。下一命令增加 `set -e`，确保 pull 失败时立即结束。
+
+## 2026-09-01 23:50 +08:00：exact pull 与完整 unit 重试
+
+- 用途：新连接第一项仍为带 45 秒边界的 `git pull --ff-only`；成功到 exact `9b42742` 且受管 tree 干净后才提交完整 unit，并持久监控。
+- 权限核对：同上一连接；`set -e` 强制任何前置门控失败时不执行提交或后续日志读取，不触碰其他用户作业。
+- 连接结果：45 秒内 pull 未完成，`set -e` 无输出退出 1；未提交作业。
+
+## 2026-09-01 23:52 +08:00：HTTP/1.1 简化 pull
+
+- 用途：新连接第一项仅执行 `git -c http.version=HTTP/1.1 pull --ff-only`，随后核对 exact `9b42742` 和受管 tree；本连接不提交作业。
+- 权限核对：仅授权的轻量 Git 同步/只读核对；缩小命令面以隔离 GitHub TLS 问题。
+- 连接结果：90 秒内仍无 Git 输出并退出 1；连续三次同步失败，均未提交作业。按经验记录后进入冷却，不进行高频重连。
+
+## 2026-09-01 23:52 +08:00：冷却后 pull-only 重试
+
+- 用途：冷却并完成经验记录后，新连接第一项仅执行一次最长 180 秒的 HTTP/1.1 `git pull --ff-only`，使用低速边界避免无限停滞；随后只核对 exact `9b42742` 与受管 tree。
+- 权限核对：仍为授权 Git 同步和只读核对，本连接不提交 Slurm 作业；失败即退出，不使用空 job id 或触碰其他项目。
+- 连接结果：明确 `GnuTLS recv error (-110)`，未同步或提交作业。服务器到 GitHub 当前不可用，启用规范允许的本地传输 fallback。
+
+## 2026-09-01 23:54 +08:00：Git bundle fallback 传输
+
+- 用途：本地从已推送 `main` 生成以远端现有 `33e9e99` 为 prerequisite、目标为 `9b42742` 的 Git bundle，先 `git bundle verify`；再以 SCP 传到服务器仓库 `.cache/elora-9b42742.bundle`，不覆盖源码。
+- 权限核对：规范明确允许服务器网络不可用时使用 SCP 本地传输；bundle 为任务临时 cache 且非 Git 受管源码。下一 SSH 连接仍须把 `git pull <bundle> main` 作为第一项仓库操作。
+- 传输结果：bundle 3,301 字节，包含 `main=9b42742503bb984a9b83125c26d8409d3688e290`，prerequisite 为 `33e9e99`；本地 verify 通过，SHA-256 `fae69b6c4b4d2fb552d0459dd75f50b37c94f5cd0ed19b5cff6e979fc88edd13`；SCP 退出 0。
+
+## 2026-09-01 23:55 +08:00：bundle pull、完整 unit 提交与监控
+
+- 用途：新 SSH 的第一项仓库操作为 `git pull --ff-only .cache/elora-9b42742.bundle main`；随后核对 exact full hash、受管 tree 与 bundle SHA-256，通过后提交完整 unit 并持久监控终态。
+- 权限核对：源码仍只通过 Git fast-forward 更新；计算只经 Slurm，读取日志严格使用非空新 job id。bundle 和编译 cache 均为本任务临时文件。
+- 同步与提交结果：bundle pull 从 `33e9e99` fast-forward 到 exact `9b42742503bb984a9b83125c26d8409d3688e290`，SHA-256 与受管 tree 门控通过；提交完整 suite Job 219。
+- Job 219 终态：`FAILED`, `ExitCode=1:0`, runtime 00:08:26，资源 compute/node221/4 CPU/16 GiB；没有再发生原生 compiler crash。pytest 汇总为 `1 failed, 71 passed, 1 skipped, 1122 warnings, 8 errors in 498.72s`。
+- 新根因：8 个 benchmark setup error 均因 canonical venv 缺 `pytest-benchmark` fixture；唯一 failure 是 PyTorch 2.11 默认 `torch._dynamo.config.trace_autograd_ops=False` 导致 `autograd.grad` 产生 2 个 graph breaks。
