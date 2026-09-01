@@ -4,7 +4,7 @@
 
 - 用户更新 `docs/AGENTS.md`，明确允许服务器联网下载必要 libraries/packages/wheels。
 - setup Slurm job 调整为“完整且哈希通过的 wheelhouse 优先，否则在线下载”，pip cache 固定在仓库忽略的 `.cache/pip`；登录节点仍不下载或安装。
-- 对应提交后测试计划：requirements 目标平台离线解析、SBATCH shell syntax、readiness 回归套件。
+- 策略 commit：`4dbccde`。提交后 requirements 目标平台离线解析、SBATCH shell syntax 和 40 项 readiness 回归均通过。
 
 ## 2026-09-01：统一环境依赖入口
 
