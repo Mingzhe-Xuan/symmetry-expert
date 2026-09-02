@@ -499,3 +499,9 @@
 
 - 用途：本地门控通过并提交推送后，新 SSH 连接首先在 `/home/xmz/symmetry-expert` 执行 `git pull --ff-only`，核对 exact HEAD 与受管工作树；随后用版本化 `gpu_smoke.sbatch` 在 `compute` 分区申请 `gpu:1`，依次验证 `dense`、`elora_clean`、`elora_paper` 的双 expert forward/backward、梯度、参数更新和 checkpoint restore。
 - 权限核对：登录节点仅执行 Git 同步、状态检查、`sinfo`/`squeue`/`scontrol` 和 `sbatch`；全部模型与 CUDA 计算由 Slurm 执行。使用已通过 Job 221 验收的 Python venv，不修改服务器受 Git 管理源码，不运行 Goal 1。
+- 连接尝试 1：强制首项 `git pull --ff-only` 因 GitHub TLS `GnuTLS recv error (-110)` 失败；命令链立即停止，未核对 HEAD、未执行 `sinfo`、未提交作业。
+
+## 2026-09-02 08:16 +08:00：三模式 GPU 矩阵 pull 短重试
+
+- 用途：新连接仍首先 `git pull --ff-only`；成功后才核对最新记录提交的 exact HEAD/受管 tree，并提交版本化三模式 GPU smoke。若 pull 再失败，明确停止且不猜测 job ID。
+- 权限核对：与上一连接相同；登录节点仅同步、检查和 `sbatch`，GPU 计算严格经 Slurm。

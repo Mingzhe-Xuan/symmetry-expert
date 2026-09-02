@@ -268,3 +268,4 @@
 - 三模式 CPU smoke 退出码均为 0。`dense` 两 expert 非零梯度计数 `[32,32]`、参数变化范数约 `[0.008000,0.008000]`；`elora_clean` 与 `elora_paper` 均为 `[16,16]`、约 `[0.005657,0.005657]`；三者输出有限、shape `[8,16]`、checkpoint restore 均成功。
 - 相关 readiness 回归：`28 passed, 39 warnings in 10.46s`，退出码 0。
 - Python compileall、GPU SBATCH `bash -n` 与 `git diff --check` 均退出码 0。额外尝试的 ruff 命令因本地未安装 ruff 而未执行；ruff 不属于预登记门控，且长行静态检查已人工修正。
+- 业务提交 `e0110fb388c3c508e0e176dacbd192bde0ae8afa` 后再次并行运行三模式 CPU smoke，`dense`、`elora_clean`、`elora_paper` 均退出码 0，逐 expert 梯度计数、参数变化和 checkpoint restore 与提交前结果一致。
