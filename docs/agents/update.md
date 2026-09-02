@@ -27,3 +27,4 @@
 - 最终 10 文件证据回传与独立断言通过；readiness 报告已回填 exact e797、Jobs 221/225/227/228、脚本 hash、日志路径和已知限制，准备最终文档提交。
 - 2026-09-02：补充 dense / elora_paper 更新验证：readiness smoke 现对三个 update mode 逐 expert 断言有限 forward、非零梯度、optimizer 参数变化和 checkpoint restore；本地 Python venv 三模式 smoke、28 项相关回归和静态门控通过，等待提交后 Guqq GPU 复验。
 - 2026-09-02：业务提交 `e0110fb` 已推送并通过提交后三模式 CPU smoke；首次 Guqq 同步因 GitHub TLS -110 在 pull 阶段停止，尚无 GPU job，进入已记录的短重试。
+- 2026-09-02：第二次 Guqq GitHub pull 短重试仍未返回输出/job ID；按既有成功经验转为 exact Git bundle 传输与 bundle fast-forward pull，GPU 作业仍未提交。

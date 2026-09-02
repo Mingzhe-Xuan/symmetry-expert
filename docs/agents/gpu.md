@@ -505,3 +505,14 @@
 
 - 用途：新连接仍首先 `git pull --ff-only`；成功后才核对最新记录提交的 exact HEAD/受管 tree，并提交版本化三模式 GPU smoke。若 pull 再失败，明确停止且不猜测 job ID。
 - 权限核对：与上一连接相同；登录节点仅同步、检查和 `sbatch`，GPU 计算严格经 Slurm。
+- 连接结果：`timeout 45s git pull --ff-only` 在时限内无任何输出，且没有返回 job ID；后续 exact/tree/sinfo/sbatch 命令均未执行。连续两次 GitHub pull 不可用，切换到仓库既有且已成功验证的 Git bundle fallback。
+
+## 2026-09-02 08:19 +08:00：exact commit bundle 传输
+
+- 用途：本地为包含本记录的 exact commit 创建 Git bundle，校验 bundle 和 SHA-256 后，通过 SCP 传到 `/home/xmz/symmetry-expert/.cache/elora-mode-matrix.bundle`；只传输任务源码历史，不执行服务器计算。
+- 权限核对：Git bundle 与 SCP 属于允许的 Git/传输操作；目标是仓库任务缓存，不覆盖受管源码、环境、数据或既有结果。
+
+## 2026-09-02 08:19 +08:00：bundle pull 与 GPU 作业提交
+
+- 用途：bundle 到达后新 SSH 连接，在仓库中的首个操作执行 `git pull --ff-only .cache/elora-mode-matrix.bundle main`；仅当 exact HEAD、受管 tree、compute/node221/gpu:1 门控通过时提交三模式 GPU SBATCH，并返回明确 job ID。
+- 权限核对：源码仍只经 Git fast-forward；登录节点只做 pull、校验和 `sbatch`，三模式 forward/backward 全部在 Slurm GPU 作业内执行。
