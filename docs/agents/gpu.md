@@ -523,3 +523,9 @@
 
 - 用途：新 SSH 的首个仓库操作为 `timeout 60s git -c http.version=HTTP/1.1 pull --ff-only`；仅成功同步到本记录 exact commit 后才核对 tree/compute/GPU 并提交三模式作业。
 - 权限核对：不传输任何本地文件；只使用授权的 Git pull、只读集群检查和 Slurm 提交。失败时不执行后续命令，不猜测 job ID。
+- 连接结果：HTTP/1.1 pull 成功，Guqq fast-forward 到 exact `ff234d67f5d049e34fd6bbb2b23c005359cad4e8`；受管 tree 门控通过，`sinfo` 确认 node221/compute/gpu:1，提交三模式 GPU smoke Job 231。
+
+## 2026-09-02 08:28 +08:00：Job 231 终态与逐模式证据
+
+- 用途：新 SSH 首先 pull 最新记录提交；随后只读查看 `squeue -j 231`、`scontrol show job 231`、stdout/stderr，并读取三个模式 JSON，断言 exact commit、终态/退出码、CUDA/RTX 5090、两个 expert 的非零梯度与参数更新、checkpoint restore。
+- 权限核对：只读作业监控与日志/JSON 检查，不重跑、不修改环境或结果；模型计算已由 Job 231 经 Slurm 执行。

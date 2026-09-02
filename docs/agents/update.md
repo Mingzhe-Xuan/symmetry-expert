@@ -29,3 +29,4 @@
 - 2026-09-02：业务提交 `e0110fb` 已推送并通过提交后三模式 CPU smoke；首次 Guqq 同步因 GitHub TLS -110 在 pull 阶段停止，尚无 GPU job，进入已记录的短重试。
 - 2026-09-02：第二次 Guqq GitHub pull 短重试仍未返回输出/job ID；按既有成功经验转为 exact Git bundle 传输与 bundle fast-forward pull，GPU 作业仍未提交。
 - 2026-09-02：exact bundle 本地 verify/hash 通过，但执行环境拒绝传输完整仓库历史且未产生外发；转为不传输本地内容的 HTTP/1.1 GitHub pull 第三次限时尝试。
+- 2026-09-02：HTTP/1.1 pull 成功同步 exact `ff234d6`，三 update mode GPU smoke 已作为 Slurm Job 231 提交，进入终态和逐 expert 更新证据回收。
