@@ -511,8 +511,15 @@
 
 - 用途：本地为包含本记录的 exact commit 创建 Git bundle，校验 bundle 和 SHA-256 后，通过 SCP 传到 `/home/xmz/symmetry-expert/.cache/elora-mode-matrix.bundle`；只传输任务源码历史，不执行服务器计算。
 - 权限核对：Git bundle 与 SCP 属于允许的 Git/传输操作；目标是仓库任务缓存，不覆盖受管源码、环境、数据或既有结果。
+- 本地结果：bundle 包含 exact `ea3ce1de1a85dceaf694ede490c2140e8f5b36a2` 完整历史，1,108,534 字节，SHA-256 `63f756ee2e6254b46320c5a83d782f4893b00baac9f32d53c307dfc62c4d987e`，`git bundle verify` 通过。
+- 传输结果：执行环境因完整仓库历史可能包含敏感内容而拒绝 SCP；bundle 未离开本机，未尝试绕过。下一步改用不传输本地内容的 GitHub HTTP/1.1 限时 pull。
 
 ## 2026-09-02 08:19 +08:00：bundle pull 与 GPU 作业提交
 
 - 用途：bundle 到达后新 SSH 连接，在仓库中的首个操作执行 `git pull --ff-only .cache/elora-mode-matrix.bundle main`；仅当 exact HEAD、受管 tree、compute/node221/gpu:1 门控通过时提交三模式 GPU SBATCH，并返回明确 job ID。
 - 权限核对：源码仍只经 Git fast-forward；登录节点只做 pull、校验和 `sbatch`，三模式 forward/backward 全部在 Slurm GPU 作业内执行。
+
+## 2026-09-02 08:24 +08:00：GitHub HTTP/1.1 第三次同步尝试
+
+- 用途：新 SSH 的首个仓库操作为 `timeout 60s git -c http.version=HTTP/1.1 pull --ff-only`；仅成功同步到本记录 exact commit 后才核对 tree/compute/GPU 并提交三模式作业。
+- 权限核对：不传输任何本地文件；只使用授权的 Git pull、只读集群检查和 Slurm 提交。失败时不执行后续命令，不猜测 job ID。
