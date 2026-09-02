@@ -112,6 +112,12 @@ pip install ./mace
 
 ### Training
 
+To train with ELoRA, you MUST install the modified e3nn version:
+
+```sh
+pip install git+https://github.com/hyjwpk/ELoRA.git@main
+```
+
 To train a MACE model, you can use the `mace_run_train` script, which should be in the usual place that pip places binaries (or you can explicitly run `python3 <path_to_cloned_dir>/mace/cli/run_train.py`)
 
 ```sh
