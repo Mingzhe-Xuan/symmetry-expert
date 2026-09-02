@@ -2,7 +2,7 @@
 
 ## 当前状态
 
-- 2026-09-02 07:59 +08:00：按用户追加要求重新进入 GPU 验证阶段。既有 Job 228 只直接证明 `elora_clean` 双 expert mixed-batch forward/backward；`dense` 与 `elora_paper` 尚无逐模式 GPU 更新证据。用户拥有的 `ELoRA/README.md` 修改继续保持未暂存。
+- 2026-09-02 08:31 +08:00：补充 GPU 验证已完成。Job 231 在 RTX 5090 上证明 `dense`、`elora_clean`、`elora_paper` 的双 expert mixed-batch forward/backward、非零梯度、optimizer 参数变化与 checkpoint restore；正在回填最终文档，用户拥有的 `ELoRA/README.md` 修改继续保持未暂存。
 
 - Goal 0 的本地完整门控、exact e797 Guqq setup/unit/CPU/GPU、证据回传与 readiness 报告均已完成；正在执行最终文档一致性检查、提交和任务临时文件清理，尚未启动 Goal 1。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
@@ -14,10 +14,8 @@
 
 ## 当前计划
 
-1. 扩展版本化 readiness smoke，使 `dense`、`elora_clean`、`elora_paper` 均断言双 expert forward/backward、非零梯度、optimizer step 参数变化与 checkpoint restore。
-2. 用 Python 创建隔离 venv，执行本地 CPU 模式矩阵及相关回归；通过后提交并推送，保持用户 README 不进入提交。
-3. 连接 Guqq 前记录用途；服务器首先 pull exact commit，再经 `compute`/`gpu:1` Slurm 执行三模式 GPU 矩阵并核验日志与 JSON。
-4. 回填测试、GPU、进度与 readiness 证据，提交文档；不运行 Goal 1。
+1. 回填 Job 231 的 exact commit、资源、终态、逐模式梯度/更新数值、日志/JSON 路径和脚本 hash。
+2. 执行最终文档一致性与工作树检查，提交并推送记录；保留用户 README，不运行 Goal 1。
 
 ## 变更记录
 
@@ -27,6 +25,7 @@
 - 2026-09-02 08:19 +08:00：第二次 GitHub pull 在 45 秒时限内仍无输出且无 job ID；改用已验证的 exact Git bundle fallback，下一步提交本记录、传输 bundle，再以 bundle pull 作为新 SSH 的首个仓库操作。
 - 2026-09-02 08:24 +08:00：exact bundle 本地校验通过但 SCP 因完整历史敏感信息风险被执行环境拒绝，未传输；下一步改用 GitHub HTTP/1.1 第三次限时同步，成功后才提交 GPU 作业。
 - 2026-09-02 08:28 +08:00：HTTP/1.1 同步 exact `ff234d6` 成功，node221/compute/gpu:1 门控通过并提交三模式 GPU Job 231；下一步只读回收终态、日志和三个 JSON。
+- 2026-09-02 08:31 +08:00：Job 231 三模式均 `COMPLETED/0:0`，stderr 0 字节；逐 expert 梯度、参数更新、CUDA 与 checkpoint 断言全绿，进入最终文档提交阶段。
 
 - 2026-09-01 15:56 +08:00：根据扩权后的 `docs/AGENTS.md` 建立新的代理记录目录；环境创建策略由 Python `venv` 调整为固定版本 uv。
 - 2026-09-01 16:00 +08:00：用户再次明确使用 Python 创建 venv，并已手动尝试构建；撤销未实施的 uv 计划，先验证现有环境。

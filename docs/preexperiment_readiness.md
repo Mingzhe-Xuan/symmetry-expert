@@ -14,7 +14,7 @@ readiness: ready
 | A 论文与仓库审计 | complete | `paper.pdf` 23 页方法、实验及附录已核对；实现边界见下表 |
 | B 配置、bank、router | complete | readiness 单元测试与真实 MACE 等变性测试 |
 | C 数据统计与 split | complete | 合成数据、2000/2001、pre-SG fallback、group leakage 测试 |
-| D checkpoint、统计、smoke | complete | checkpoint metadata、merge/unmerge、exact e797 CPU/GPU smoke |
+| D checkpoint、统计、smoke | complete | checkpoint metadata、merge/unmerge、exact e797 CPU/GPU smoke；Job 231 三 update mode GPU 更新矩阵 |
 | E Guqq Slurm | complete | Job 225 完整 suite 与 Jobs 227/228 双 smoke 全绿 |
 
 ## 论文逻辑与实现映射
@@ -46,7 +46,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 7. 参数/optimizer/非零梯度/内存：`parameter_statistics`。
 8. 数据 10–13、16：合成统计产物、计数守恒、threshold、split leakage、2000/2001 和 pre-SG fallback tests。
 9. router 14：冻结 symmetry/random labels来自 manifest；learned router只读 invariant features，测试旋转/平移/置换不改输入与路由。
-10. GPU 15：Guqq Job 228 在 RTX 5090 上证明 CC 12.0、`sm_120`、torch CUDA 12.8、实际 CUDA kernel、forward/backward 与 checkpoint restore。
+10. GPU 15：Guqq Job 228 在 RTX 5090 上证明 CC 12.0、`sm_120`、torch CUDA 12.8、实际 CUDA kernel、forward/backward 与 checkpoint restore；补充 Job 231 对 `dense`、`elora_clean`、`elora_paper` 分别证明双 expert 非零梯度与 optimizer 参数更新。
 
 ## 可复现入口
 
@@ -72,6 +72,8 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 - Guqq unit Job 225：exact e797，compute/node221/4 CPU/16 GiB，`COMPLETED`, `ExitCode=0:0`, runtime 00:22:32；完整命令 `python -m pytest ELoRA/tests -q`，结果 `82 passed, 1 skipped, 1201 warnings in 1341.62s`，8 个 benchmark 全部真实执行，stderr 为空。唯一 skip 是未安装可选 `schedulefree` 时该模块的声明式跳过，不影响 Goal 0 要求。
 - Guqq CPU Job 227：exact e797，2 CPU/8 GiB，`COMPLETED`, `ExitCode=0:0`, runtime 00:00:04；forward/backward、checkpoint restore、有限 loss、shape `[8,16]` 与 JSON 成功，stderr 为空。
 - Guqq GPU Job 228：exact e797，4 CPU/16 GiB/`gres:gpu:1`，`COMPLETED`, `ExitCode=0:0`, runtime 00:00:05；RTX 5090、CC 12.0、`sm_120_supported=true`、torch CUDA 12.8、实际 CUDA kernel、forward/backward、checkpoint restore 与 JSON 成功，stderr 为空。
+- Guqq 三模式 GPU Job 231：exact `ff234d67f5d049e34fd6bbb2b23c005359cad4e8`，node221/compute，4 CPU/16 GiB/`gres:gpu:1`，`COMPLETED`, `ExitCode=0:0`, runtime 00:00:17。`dense` 两 expert 的 `expert_delta_bank` 非零梯度计数 `[32,32]`、更新范数约 `[0.008000,0.008000]`；`elora_clean` 与 `elora_paper` 两 expert 的 `lora_B_bank` 均为 `[16,16]`、约 `[0.005657,0.005657]`。三者均在 RTX 5090/CUDA 12.8/CC 12.0 上输出有限、shape `[8,16]`、checkpoint restore 成功；stderr 0 字节。
+- Job 231 证据：`/home/xmz/symmetry-expert/slurm-elora-gpu-smoke-231.{out,err}` 与 `ELoRA/artifacts/readiness/gpu-smoke-{dense,elora-clean,elora-paper}.json`；GPU SBATCH SHA-256 `6225e4fe…a0f0d`，smoke Python SHA-256 `e54b2a84…54b31`。
 - 服务器原始证据：`/home/xmz/symmetry-expert/slurm-elora-{env-221,unit-225,cpu-smoke-227,gpu-smoke-228}.{out,err}` 与 `ELoRA/artifacts/readiness/{cpu-smoke,gpu-smoke}.json`。SCP 回传后内容、JSON 和 stderr 字节数独立核验通过。
 - Slurm script SHA-256：setup `b8d15390…3160d`；unit `5647ce58…fa39`；CPU `9b2ab606…a5d8`；GPU `bdf15209…65f0`。
 
@@ -87,6 +89,7 @@ Dense shared 模式直接更新 scope 内原参数。Dense multi-expert 为避�
 
 - `schedulefree` 是仓库可选依赖，未列入 Goal 0 canonical requirements；其独立测试模块按源码声明跳过 1 项。所有 Goal 0 强制功能、compile、benchmark、CPU/GPU smoke 均已运行通过。
 - setup Job 221 发现旧 wheelhouse manifest 缺文件/不匹配，因而按版本化脚本回退到授权的在线/缓存安装；setup stderr 保留 607 字节 hash 诊断，但 job、`pip check`、版本与 imports 全部成功。unit/CPU/GPU stderr 均为 0 字节。
+- Job 231 验证的是核心 `SymmetricContraction` 的 mixed-expert 更新路径与 checkpoint，并非完整数据训练或 Goal 1 科学实验；三种模式的 update policy/scope 另由 readiness 单元测试覆盖。
 - 本报告只证明正式预实验的工程就绪性；未运行 Goal 1 数据统计或训练矩阵，也不包含科学性能结论。
 
 readiness: ready

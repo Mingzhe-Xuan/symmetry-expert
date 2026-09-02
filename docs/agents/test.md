@@ -269,3 +269,11 @@
 - 相关 readiness 回归：`28 passed, 39 warnings in 10.46s`，退出码 0。
 - Python compileall、GPU SBATCH `bash -n` 与 `git diff --check` 均退出码 0。额外尝试的 ruff 命令因本地未安装 ruff 而未执行；ruff 不属于预登记门控，且长行静态检查已人工修正。
 - 业务提交 `e0110fb388c3c508e0e176dacbd192bde0ae8afa` 后再次并行运行三模式 CPU smoke，`dense`、`elora_clean`、`elora_paper` 均退出码 0，逐 expert 梯度计数、参数变化和 checkpoint restore 与提交前结果一致。
+
+### Guqq 三模式 GPU 实际结果
+
+- Job 231 在 exact `ff234d67f5d049e34fd6bbb2b23c005359cad4e8` 上运行版本化 GPU SBATCH；`COMPLETED`, `ExitCode=0:0`, runtime 00:00:17，node221/compute，4 CPU/16 GiB/`gres:gpu:1`，stderr 0 字节。
+- `dense`：两个 expert 的 `expert_delta_bank` 非零梯度计数 `[32,32]`，optimizer 参数变化范数 `[0.0079999776,0.0079999827]`。
+- `elora_clean`：两个 expert 的 `lora_B_bank` 非零梯度计数 `[16,16]`，参数变化范数 `[0.0056568512,0.0056568494]`。
+- `elora_paper`：两个 expert 的 `lora_B_bank` 非零梯度计数 `[16,16]`，参数变化范数 `[0.0056568512,0.0056568494]`。
+- 三模式均为 RTX 5090、torch CUDA 12.8、CC 12.0、sm_120，forward 输出有限、shape `[8,16]`，backward/optimizer step/checkpoint restore 全部成功。GPU SBATCH SHA-256 `6225e4fe91eab89bde98ec13af09c389a14d6270afab4848895bcf122f7a0f0d`，smoke Python SHA-256 `e54b2a84df95379aca869bd7a22b2c9a65a230960d715fc7cd1fcf2e56754b31`。

@@ -30,3 +30,4 @@
 - 2026-09-02：第二次 Guqq GitHub pull 短重试仍未返回输出/job ID；按既有成功经验转为 exact Git bundle 传输与 bundle fast-forward pull，GPU 作业仍未提交。
 - 2026-09-02：exact bundle 本地 verify/hash 通过，但执行环境拒绝传输完整仓库历史且未产生外发；转为不传输本地内容的 HTTP/1.1 GitHub pull 第三次限时尝试。
 - 2026-09-02：HTTP/1.1 pull 成功同步 exact `ff234d6`，三 update mode GPU smoke 已作为 Slurm Job 231 提交，进入终态和逐 expert 更新证据回收。
+- 2026-09-02：Job 231 在 RTX 5090 上完成 `dense`、`elora_clean`、`elora_paper` 双 expert forward/backward、非零梯度、optimizer 更新和 checkpoint restore；三模式全绿且 stderr 为空，准备提交最终证据。

@@ -529,3 +529,5 @@
 
 - 用途：新 SSH 首先 pull 最新记录提交；随后只读查看 `squeue -j 231`、`scontrol show job 231`、stdout/stderr，并读取三个模式 JSON，断言 exact commit、终态/退出码、CUDA/RTX 5090、两个 expert 的非零梯度与参数更新、checkpoint restore。
 - 权限核对：只读作业监控与日志/JSON 检查，不重跑、不修改环境或结果；模型计算已由 Job 231 经 Slurm 执行。
+- 回收结果：Job 231 `COMPLETED`, `ExitCode=0:0`, runtime 00:00:17，node221/compute，4 CPU/16 GiB/`gres:gpu:1`；stdout 4,021 字节，stderr 0 字节，exact commit `ff234d67f5d049e34fd6bbb2b23c005359cad4e8`。
+- 三模式结果：`dense` 两 expert 梯度 `[32,32]`、更新范数约 `[0.008000,0.008000]`；`elora_clean`/`elora_paper` 均为 `[16,16]`、约 `[0.005657,0.005657]`。三个 JSON 均报告 RTX 5090、CUDA 12.8、CC 12.0、sm_120、有限 loss、shape `[8,16]`、checkpoint restore true，stdout 以 `status=success` 结束。
