@@ -495,3 +495,7 @@
 - 用途：单次 SCP 回传 setup 221、unit 225、CPU 227、GPU 228 的 stdout/stderr 及最新 CPU/GPU JSON 到本地 `.cache/final-e797-evidence/`，逐文件核验后删除本地副本；服务器原始证据保留。
 - 权限核对：规范允许本地 SCP 结果数据；仅只读复制本任务文件，不修改服务器状态。
 - 回传结果：10 个精确文件 SCP 退出 0；setup/unit 关键版本与摘要、三个测试 stderr 0 字节、CPU/GPU JSON 字段和全部文件 SHA-256 均独立核验通过。服务器原始证据保留。
+## 2026-09-02 08:08 +08:00：三 update mode GPU 更新矩阵
+
+- 用途：本地门控通过并提交推送后，新 SSH 连接首先在 `/home/xmz/symmetry-expert` 执行 `git pull --ff-only`，核对 exact HEAD 与受管工作树；随后用版本化 `gpu_smoke.sbatch` 在 `compute` 分区申请 `gpu:1`，依次验证 `dense`、`elora_clean`、`elora_paper` 的双 expert forward/backward、梯度、参数更新和 checkpoint restore。
+- 权限核对：登录节点仅执行 Git 同步、状态检查、`sinfo`/`squeue`/`scontrol` 和 `sbatch`；全部模型与 CUDA 计算由 Slurm 执行。使用已通过 Job 221 验收的 Python venv，不修改服务器受 Git 管理源码，不运行 Goal 1。

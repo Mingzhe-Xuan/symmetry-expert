@@ -21,7 +21,10 @@ ACTUAL_COMMIT="$(git rev-parse HEAD)"
 source /home/xmz/symmetry-expert/.venv/bin/activate
 echo "job_id=${SLURM_JOB_ID} host=$(hostname) commit=${ACTUAL_COMMIT} cuda_visible_devices=${CUDA_VISIBLE_DEVICES:-unset}"
 nvidia-smi
-CMD=(python ELoRA/scripts/readiness_smoke.py --device cuda --output ELoRA/artifacts/readiness/gpu-smoke.json)
-printf 'command:'; printf ' %q' "${CMD[@]}"; printf '\n'
-srun --ntasks=1 "${CMD[@]}"
+for UPDATE_MODE in dense elora_clean elora_paper; do
+    OUTPUT_MODE="${UPDATE_MODE//_/-}"
+    CMD=(python ELoRA/scripts/readiness_smoke.py --device cuda --update-mode "${UPDATE_MODE}" --output "ELoRA/artifacts/readiness/gpu-smoke-${OUTPUT_MODE}.json")
+    printf 'command:'; printf ' %q' "${CMD[@]}"; printf '\n'
+    srun --ntasks=1 "${CMD[@]}"
+done
 echo "end_time=$(date --iso-8601=seconds) status=success"

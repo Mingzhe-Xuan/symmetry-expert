@@ -27,3 +27,8 @@
 - setup offline gate 会单独校验这两个新增 wheel；Guqq Python venv 重建与 `pip check` 尚待 exact commit 的 setup Slurm 验收。
 - Guqq setup Job 221：`COMPLETED`, `ExitCode=0:0`, runtime 00:04:44；Python 3.10.12、torch `2.11.0+cu128` / CUDA 12.8、pytest-benchmark 5.2.3、py-cpuinfo 9.0.0、editable MACE 0.3.5、imports 与 `pip check` 全部成功。
 - 旧 wheelhouse `SHA256SUMS` 缺 7 文件且 1 文件 hash 不匹配，故版本化 setup 正确选择在线/缓存 fallback；正式 `.venv` 的最终版本与 canonical requirements 一致，不使用本地 Windows 宿主环境作为安装证据。
+## 2026-09-02：dense / elora_paper 本地补充验证环境
+
+- 通过 `python -m venv --system-site-packages .cache/dense-paper-venv` 创建任务本地隔离环境；Python 3.12.7，继承本机 torch 2.11.0+cpu，仅用于提交前 CPU smoke 与相关回归，不作为 Guqq canonical 环境证据。
+- 在 venv 内安装 `e3nn==0.4.4`、`torch-ema==0.3`、`matscipy==1.0.0`、`python-hostlist==1.23.0`；这些版本均已存在于 `docs/requirements.txt`，没有新增依赖。
+- Guqq 仍使用 `/home/xmz/symmetry-expert/.venv`（Python 3.10.12、torch 2.11.0+cu128、e3nn 0.4.4）；本次不重建服务器环境，GPU 验证沿用 Job 221 已验收环境。

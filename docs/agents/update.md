@@ -25,3 +25,4 @@
 - Job 221 环境全绿；Job 222 将剩余失败收敛到 fullgraph 图内梯度突变和异常路径 dtype 泄漏。采用 upstream 的图外 positions leaf 约定并给 dtype context 加 finally，本地完整 suite 69 passed。
 - exact e797 最终闭环全绿：Job 225 完整 suite 82 passed、1 skipped，Jobs 227/228 CPU/GPU smoke 均完成且 stderr 为空；进入最终 readiness 文档与临时证据清理。
 - 最终 10 文件证据回传与独立断言通过；readiness 报告已回填 exact e797、Jobs 221/225/227/228、脚本 hash、日志路径和已知限制，准备最终文档提交。
+- 2026-09-02：补充 dense / elora_paper 更新验证：readiness smoke 现对三个 update mode 逐 expert 断言有限 forward、非零梯度、optimizer 参数变化和 checkpoint restore；本地 Python venv 三模式 smoke、28 项相关回归和静态门控通过，等待提交后 Guqq GPU 复验。

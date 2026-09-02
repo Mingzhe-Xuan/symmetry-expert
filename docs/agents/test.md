@@ -253,3 +253,18 @@
 
 - readiness 报告全部必需字段断言通过：exact e797、Jobs 221/225/227/228、82 passed/1 skipped、四脚本 hash 前缀、服务器日志路径、schedulefree 与 setup fallback 限制、未运行 Goal 1。
 - readiness marker 精确为两个 `ready`、零个 `not_ready`；`git diff --check` 通过，退出码 0。
+
+## 2026-09-02：dense / elora_paper GPU 更新验证（计划）
+
+- 实现单元：扩展 `readiness_smoke.py` 与 GPU SBATCH，使 `dense`、`elora_clean`、`elora_paper` 使用相同的双 expert mixed batch、loss 和 optimizer 协议。
+- 每种模式必须证明：forward 输出有限；backward 完成；两个被路由 expert 的可训练差分参数各自具有有限且非零梯度；一次 optimizer step 后两个 expert 参数切片均发生变化；checkpoint restore 输出一致。
+- 对 ELoRA 模式，初始化时 `B=0` 导致首步 `A` 梯度可为零，因此更新断言针对承载首步梯度的 `lora_B_bank`；dense 针对 `expert_delta_bank`。这不降低 backward 标准，而是匹配零差分 LoRA 初始化的数学语义。
+- 本地提交前门控：Python `venv` 中运行三模式 CPU smoke、相关 readiness 单元测试、`gpu_smoke.sbatch` 的 `bash -n`、Python compileall 与 `git diff --check`，全部退出码必须为 0。
+- Guqq 门控：同一已推送 exact commit 上，通过版本化 `compute`/`gpu:1` Slurm 脚本运行三模式 GPU smoke；逐模式 JSON、stdout/stderr、scheduler 终态和退出码全部通过后才可完成。
+
+### commit 前实际结果
+
+- 本地环境由 `python -m venv --system-site-packages .cache/dense-paper-venv` 创建；Python 3.12.7、torch 2.11.0+cpu，并在 venv 内固定 e3nn 0.4.4、torch-ema 0.3、matscipy 1.0.0、python-hostlist 1.23.0。首次两次导入门控分别暴露缺失 torch-ema/matscipy 和 python-hostlist，补齐 `docs/requirements.txt` 中的固定依赖后通过；均未进入测试计算，不属于模式失败。
+- 三模式 CPU smoke 退出码均为 0。`dense` 两 expert 非零梯度计数 `[32,32]`、参数变化范数约 `[0.008000,0.008000]`；`elora_clean` 与 `elora_paper` 均为 `[16,16]`、约 `[0.005657,0.005657]`；三者输出有限、shape `[8,16]`、checkpoint restore 均成功。
+- 相关 readiness 回归：`28 passed, 39 warnings in 10.46s`，退出码 0。
+- Python compileall、GPU SBATCH `bash -n` 与 `git diff --check` 均退出码 0。额外尝试的 ruff 命令因本地未安装 ruff 而未执行；ruff 不属于预登记门控，且长行静态检查已人工修正。

@@ -2,6 +2,8 @@
 
 ## 当前状态
 
+- 2026-09-02 07:59 +08:00：按用户追加要求重新进入 GPU 验证阶段。既有 Job 228 只直接证明 `elora_clean` 双 expert mixed-batch forward/backward；`dense` 与 `elora_paper` 尚无逐模式 GPU 更新证据。用户拥有的 `ELoRA/README.md` 修改继续保持未暂存。
+
 - Goal 0 的本地完整门控、exact e797 Guqq setup/unit/CPU/GPU、证据回传与 readiness 报告均已完成；正在执行最终文档一致性检查、提交和任务临时文件清理，尚未启动 Goal 1。
 - 本地 canonical 依赖为 `docs/requirements.txt`；Guqq 固定目标为 Python 3.10.12、PyTorch 2.11.0+cu128、e3nn 0.4.4。
 - setup Job 201 因不可达 IPv6 长超时取消；Job 202 在规则切换期间取消。手动 Python venv 的固定包版本与 `pip check` 通过，但错误安装 torch 2.11.0+cu130，当前驱动下 CUDA 不可用。
@@ -12,12 +14,15 @@
 
 ## 当前计划
 
-1. 提交并推送已通过本地门控的审计修复，保持用户 `ELoRA/README.md` 改动不进入提交。
-2. 在 Guqq 新连接先 pull 并核对 exact HEAD，再通过 Slurm 重跑完整 unit、CPU/GPU smoke。
-3. 回传并核验 job 日志、JSON、脚本哈希、资源、环境、终态和退出码；回填 readiness 报告。
-4. 运行最终文档检查、提交推送、清理任务临时文件并确认工作树只剩用户改动；不启动 Goal 1。
+1. 扩展版本化 readiness smoke，使 `dense`、`elora_clean`、`elora_paper` 均断言双 expert forward/backward、非零梯度、optimizer step 参数变化与 checkpoint restore。
+2. 用 Python 创建隔离 venv，执行本地 CPU 模式矩阵及相关回归；通过后提交并推送，保持用户 README 不进入提交。
+3. 连接 Guqq 前记录用途；服务器首先 pull exact commit，再经 `compute`/`gpu:1` Slurm 执行三模式 GPU 矩阵并核验日志与 JSON。
+4. 回填测试、GPU、进度与 readiness 证据，提交文档；不运行 Goal 1。
 
 ## 变更记录
+
+- 2026-09-02 07:59 +08:00：Goal 0 完成后的补充审计发现 GPU smoke 覆盖面不足以支持所有 update mode；阶段调整为 dense/elora_paper GPU 更新验证，下一步先实现可复现的版本化模式矩阵。
+- 2026-09-02 08:08 +08:00：版本化三模式 smoke 与逐 expert 梯度/更新断言已实现；Python venv 的本地三模式 CPU smoke、28 项相关回归及静态门控通过，下一步提交推送并在 Guqq exact commit 上运行 GPU 矩阵。
 
 - 2026-09-01 15:56 +08:00：根据扩权后的 `docs/AGENTS.md` 建立新的代理记录目录；环境创建策略由 Python `venv` 调整为固定版本 uv。
 - 2026-09-01 16:00 +08:00：用户再次明确使用 Python 创建 venv，并已手动尝试构建；撤销未实施的 uv 计划，先验证现有环境。
